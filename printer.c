@@ -6,10 +6,6 @@
 //                                                                       //
 //***********************************************************************//
 
-// This driver source have designed for both image printing and text printing
-// Version : V1.0
-
-
 //-------Kernel Header files included------
 
 #include<linux/module.h>
@@ -23,13 +19,13 @@
 #include <linux/kernel.h>
 #include <linux/syscalls.h>
 #include <linux/file.h>
-
 #include <linux/proc_fs.h>
 
 //-------Header files included------
 
 #include "motor.h"
 #include "final_font.h"
+#include "sample_font.h"
 
 //----------- Tamil Fonts included -------
 
@@ -39,14 +35,14 @@ unsigned char Get_Tamil_Array[30];
 unsigned char* tamilfont_generation(unsigned char* tamilunicode,unsigned int tamil_word_size);
 unsigned int parse_char(char c);
 char part1[2];
-int tamil_letter_count;
+int tamil_letter_count, tamil;
 char *senduart;
 
 unsigned int parse_char(char c)
 {
-    if ('0' <= c && c <= '9') return c - '0';
-    if ('a' <= c && c <= 'f') return 10 + c - 'a';
-    if ('A' <= c && c <= 'F') return 10 + c - 'A';
+	if ('0' <= c && c <= '9') return c - '0';
+	if ('a' <= c && c <= 'f') return 10 + c - 'a';
+	if ('A' <= c && c <= 'F') return 10 + c - 'A';
 }
 
 //-------macros defined -------
@@ -57,8 +53,8 @@ unsigned int parse_char(char c)
 
 #define SPI_BUS 1
 #define SPI_BUS_CS1 0
-//#define SPI_BUS_SPEED 10000000
-#define SPI_BUS_SPEED 750000
+#define SPI_BUS_SPEED 10000000
+//#define SPI_BUS_SPEED 750000
 
 //------function decleration--------------
 
@@ -69,6 +65,7 @@ int bat_present=0;
 static unsigned char langprintdata[DATA_BUFF_SIZE];
 
 //------Driver name-----------------------
+
 const char this_driver_name[] = "printer";
 const char shared_driver_name[] = "iprinter";
 
@@ -78,48 +75,48 @@ struct tm broken;
 //-------------
 struct printer_control
 {
-    struct spi_message msg;
-    struct spi_transfer transfer;
-    u8 *tx_buff;
-    u8 *rx_buff;
+	struct spi_message msg;
+	struct spi_transfer transfer;
+	u8 *tx_buff;
+	u8 *rx_buff;
 };
 struct printer_control printer_ctl;
 
 //------------
 struct printer_dev {
-    struct semaphore spi_sem;
-    struct semaphore fop_sem;
-    dev_t devt;
-    struct cdev cdev;
-    struct class *class;
-    struct spi_device *spi_device;
-    char *user_buff;
-    u8 test_data;
+	struct semaphore spi_sem;
+	struct semaphore fop_sem;
+	dev_t devt;
+	struct cdev cdev;
+	struct class *class;
+	struct spi_device *spi_device;
+	char *user_buff;
+	u8 test_data;
 };
 struct printer_dev printer_dev;
 
 struct PRINTER_image {
-    dev_t devt;
-    struct cdev cdev;
-    char *user_buff;
+	dev_t devt;
+	struct cdev cdev;
+	char *user_buff;
 };
 struct PRINTER_image PRINTER_image;
 
 struct bytedata {
-    unsigned int bit7: 1;
-    unsigned int bit6: 1;
-    unsigned int bit5: 1;
-    unsigned int bit4: 1;
-    unsigned int bit3: 1;
-    unsigned int bit2: 1;
-    unsigned int bit1: 1;
-    unsigned int bit0: 1;
+	unsigned int bit7: 1;
+	unsigned int bit6: 1;
+	unsigned int bit5: 1;
+	unsigned int bit4: 1;
+	unsigned int bit3: 1;
+	unsigned int bit2: 1;
+	unsigned int bit1: 1;
+	unsigned int bit0: 1;
 };
 struct bytedata pbyte;
 
 //-------------------------variable declarations---------------------
 char **buff,temp_image,q;
-int length,i,k,z,n,y=100,g[2000],w,x,odd,even,file=10,low_bat,rotate_pulse_count=1,rotate_loop=0,loop=0;
+int length,i,k,z,n,y=100,g[2000],w,x,file=10,low_bat,rotate_pulse_count=1,rotate_loop=0,loop=0;
 u8 tmp[48];
 u32 *addr=&tmp;
 char data_read[100];
@@ -170,7 +167,6 @@ unsigned int printer_counter=0;
 
 int Noofbytes()
 {
-
 	NoOfBytes=((g[2]&0x0F)<<12);
 	NoOfBytes|=((g[3]&0x0F)<<8);
 	NoOfBytes|=((g[4]&0x0F)<<4);
@@ -207,12 +203,20 @@ void rotate(int rotate_loop)
 		{
 			if(rotate_pulse_count==1)
 			{
-				even_rotate();
+				if(tamil == 1)
+					lp_even_rotate();
+				else
+					even_rotate();
+
 				rotate_pulse_count=2;
 			}
 			else if(rotate_pulse_count==2)
 			{
-				odd_rotate();
+				if(tamil == 1)
+					lp_odd_rotate();				
+				else
+					odd_rotate();
+
 				rotate_pulse_count=1;
 			}
 		}
@@ -253,135 +257,101 @@ static void printer_prepare_spi_message(void)
 
 	//	printk(KERN_ALERT "length is ...........   %d  \n",length);
 
-	for(k=0;k<=1;k++)
+	for(k=0;k<=5;k++)
 	{
 		g[k]=(**(buff))-32;
 		++(*buff);
 	}
 
-	//	paper_sensing();
+	Noofbytes();
 
-	//---------------------------------------PROTOCOL starting------------------------------------------
+	printk("No of Bytes = %d\n",Temp);
 
-	if(g[0]==94)    //~ -----------start byte of protocol
+	for(k=6; k<Temp; k++)
 	{
+		g[k]=(**(buff))-32;
+		++(*buff);
+	}
 
+//---------------------------------------PROTOCOL starting------------------------------------------
+
+// ~	Start Byte
+// ^!	End Byte
+
+printk("%c %c %c\n",g[0]+32, g[Temp-2]+32, g[Temp-1]+32);
+
+	if(g[0]+32 == '~' && g[Temp-2]+32 == '^' && g[Temp-1]+32 == '!')	// Start & End byte check
+	{
 		paper_Temp=0;
 
 		switch(g[1])
 		{
-
-			//********************************** Paper feed **********************************
-
+			//******************** Paper feed ********************
 			case 50: // R - motor rotation
 
 				for(k=2;k<=5;k++)
 				{
-					g[k]=(**(buff))-32;
-					++(*buff);
+					g[k]=g[k+4];
 				}
-
+				Temp = 0;
 				Noofbytes();
-				//			printk("No of Bytes = %d\n",Temp);
 
 				for(i=0;i<Temp;i++)
-				{
 					empty_rotate();
-				}
 
 				Temp=0;
 				break;
 
-				//******************** TAMIL PRINTING *************************
-
+			//******************** TAMIL PRINTING ********************
 			case 52:  //T ----------------------Tamil printing  g[1]
 
+				tamil = 1;	// Flag - strobe heating for tamil fonts
 				tamil_letter_count = 0;
-				no_of_lines=0;
 
-				for(k=2;k<=5;k++)
+				for(k=6;k<=Temp-4;k++)
 				{
-					g[k]=(**(buff))-32;
-					++(*buff);
-				}
-
-				Noofbytes();
-
-				for(k=6;k<=(Temp+5)-3;k++)
-				{
-					part1[0]=(**(buff));
-					++(*buff);
+					part1[0]=g[k]+32;
 					k++;
-
-					part1[1]=(**(buff));
-					++(*buff);
-
+					part1[1]=g[k]+32;
 					Get_Tamil_Array[tamil_letter_count++] = parse_char(part1[0]) * 0x10 + parse_char(part1[1]);
 				}
+				GCu_StringSize=tamil_letter_count;
 
-				for(k = 0; k < 3; k++)
-				{
-					g[k] = (**(buff));
-					++(*buff);
-				}
-
-				if(g[1] == 126 && g[2] == 33)
-				{
-					GCu_StringSize=tamil_letter_count;
-
-					senduart = tamilfont_generation(Get_Tamil_Array,GCu_StringSize);
-					int iii=0, jjj=0, xxx=0, yyy=0;
-					for(iii=0; iii<26; iii++)
+				senduart = tamilfont_generation(Get_Tamil_Array,GCu_StringSize);
+				int main_count_x=0, main_count_j=0, main_count_z=0;
+				for(main_count_x=0; main_count_x<26; main_count_x++)
 					{
-						xxx=0;
-						for(jjj=0; jjj<48; jjj++)
-							tmp[xxx++] = GCu_FinalBuffer2[(iii*48)+jjj];
+						main_count_z=0;
+						for(main_count_j=0; main_count_j<48; main_count_j++)
+							tmp[main_count_z++] = GCu_FinalBuffer2[(main_count_x*48)+main_count_j];
 
 						spi_write(printer_dev.spi_device, addr, 48);
 
-						if(g[0] == 76)
+						if(g[Temp-3]+32 == 'L')	// Large Font
 							rotate(2);
-						else if(g[0] == 83)
+						else if(g[Temp-3]+32 == 'S')	// Small Font
 							rotate(1);
 
 						memset(tmp, 0, 48);
 						memset(addr, 0, 48);
 						memset(Get_Tamil_Array, 0, 30);
 					}
-				}
 				Temp=0;
 				break;
 
 				//******************** ENGLISH PRINTING *************************
 
 			case 37:  //E ----------------------english printing  g[1]
-
+			
+				tamil = 0;
 				no_of_lines=0;
 
-				for(k=2;k<=5;k++)
+				for(k=6;k<Temp-1;k++)
 				{
-					g[k]=(**(buff))-32;
-					++(*buff);
-					//				printk("g[%d] = %d\n",k,g[k]);
-				}
-
-				Noofbytes();
-
-				//			printk("No of Bytes = %d\n",Temp);
-
-				for(k=6;k<Temp;k++)
-				{
-					g[k]=(**(buff))-32;
-					++(*buff);
-					if(g[k]==94)
-					{
+					if(g[k]+32 == '~')
 						no_of_lines++;
-					}
 				}
 
-				if(g[Temp-1]==1)
-				{
-					//				printk("last byte is received...\n");
 					buffer_check1=6;
 					lineprint_status=0;
 					for(line_wise=0;line_wise<no_of_lines;line_wise++)
@@ -391,90 +361,61 @@ static void printer_prepare_spi_message(void)
 							do_gettimeofday(&t);
 							printer_counter=line_wise;
 						}
+
 						data_size=1;
 						do
 						{
 							data[data_size]=g[buffer_check1];
 							data_size++;
 							buffer_check1++;
-						} while(g[buffer_check1]!=94);
+						} while(g[buffer_check1]+32 != '~');
 
 						buffer_check1=buffer_check1+1;
 						data_length=data_size;
-						//				printk("Data_length=%d\n",data_length);
 
-						even=0;
-						odd=1;
-
-						//---------------------------------------------------------------------------------------------
-						//if((data[data_size-2] > 32) && (data[data_size-2] < 59))
-						switch(g[Temp-2]) {
-							case 17:
-								fontstyle=1;
-								break;
-							case 18:
-								fontstyle=2;
-								break;
-							case 19:
-								fontstyle=3;
-								break;
-						}
+						// English Font analysing (Allignment & Size & Type) 
 
 						switch (data[data_size-1]) {
 							case 44:
-								allignment=1;
+								allignment=1;	// Left allignment
 								break;
 							case 50:
-								allignment=2;
+								allignment=2;	// Right allignment
 								break;
 							case 35:
-								allignment=3;
+								allignment=3;	// Center allignment
 								break;
 						}
 
 						switch(data[data_size-3]) {
 							case 50:
-								font=1;
-								//printk("Font=1\n");
+								font=1;	// Regular font
 								break;
 							case 34:
-								//printk("Font=2\n");
-								font=2;
+								font=2;	// Bold font
 								break;
 							case 41:
-								//printk("Font=3\n");
-								font=3;
+								font=3;	// Italic font
 								break;
 						}
 
 						switch(data[data_size-2]) {
-							case 52:
+							case 51:	// Small font
 								size=1;
-								//printk("Tiny font\n");
-								if(data_size>46)
-								{
-									data_size=46;
-								}
-								break;
-							case 51:
-								size=2;
-								//printk("Smallfont\n");
 								if(data_size>42)
 								{
 									data_size=42;
 								}
 								break;
-							case 45:
-								size=3;
-								//printk("Mediumfont\n");
-								if(data_size>36)
+							case 45:	// Medium font
+								size=2;
+								if(data_size>32)
 								{
-									data_size=36;
+									data_size=32;
 								}
 								break;
-							case 44:
-								size=4;
-								//printk("Largefont\n");
+							case 44:	// Large font
+								size=3;
 								if(data_size>31)
 								{
 									data_size=31;
@@ -482,410 +423,25 @@ static void printer_prepare_spi_message(void)
 								break;
 						}
 
-						// Tiny font - starts
-						if(size==1)
+						// ******************** Medium Font ************************
+						if(size == 1)
 						{
 							memset(envy,0,48);
 
 							for(height=0;height<13;height++)
-							{
-								for(width=1;width<=50 && width<(data_size-3);width++)
-								{
-									if(font==1)
-									{
-										switch(fontstyle){
-											case 1:
-												envy[width]=Unispace7reg[data[width]][height];
-												break;
-											case 2:
-												envy[width]=BitstreamVeraSansMono8reg[data[width]][height];
-												break;
-											case 3:
-												envy[width]=Consolas8reg[data[width]][height];
-												break;
-											default:
-												envy[width]=Unispace7reg[data[width]][height];
-												break;
-										}
-
-									}
-									else if(font==2)
-									{
-										switch(fontstyle){
-											case 1:
-												envy[width]=Unispace7bold[data[width]][height];
-												break;
-											case 2:
-												envy[width]=BitstreamVeraSansMono8bold[data[width]][height];
-												break;
-											case 3:
-												envy[width]=Consolas8bold[data[width]][height];
-												break;
-											default:
-												envy[width]=Unispace7bold[data[width]][height];
-												break;
-										}
-									}
-
-								}
-
-								// 8
-								int count_2,pixel_array_count=0,temp_var=0, char_pixel_data, bit_position=0;
-								int width_s=8;
-								for(i=1;i<43;i++)
-								{
-									char_pixel_data=envy[i];
-									for(count_2 = 0; count_2 < width_s; count_2++)
-									{
-										if (char_pixel_data & 0x8000)
-											temp_var |= 0x01;
-										else
-											temp_var |= 0x00;
-										bit_position++;
-										if (bit_position > 7)
-										{
-											tmp_buff[pixel_array_count] = temp_var;
-											temp_var = 0;
-											bit_position = 0;
-											pixel_array_count++;
-										}
-										char_pixel_data = char_pixel_data << 1;
-										temp_var = temp_var << 1;
-									}
-								}
-
-								if(data_length>=46)
-								{
-									data_length=46;
-								}
-
-								if(allignment==1) // left allignment
-								{
-
-									start=((data_size-4)*8);
-									start=384-start;
-									start=((start/8));
-									start=48-start;
-
-									for(i=0;i<start;i++)
-									{
-										tmp[i]=tmp_buff[i];
-									}
-
-									j=0;
-
-									for(i=start;i<48;i++)
-									{
-										tmp[i]=0;
-									}
-
-								}
-
-								else if(allignment==2) // right allignment
-								{
-									start=((data_size-4)*8);
-									start=384-start;
-									start=((start/8));
-
-									for(i=0;i<start;i++)
-									{
-										tmp[i]=0;
-									}
-
-									j=0;
-
-									for(i=start;i<48;i++)
-									{
-										tmp[i]=tmp_buff[j];
-										j++;
-									}
-								}
-
-								else if(allignment==3) // center allignment
-								{
-									start=((data_size-4)*8);
-									start=384-start;
-									start=((start/2)+(start%2));
-									start=((start/8));
-									end=((data_size-4)*10);
-									end=((end/8)+(end%8));
-									end=(start+end);
-
-									for(i=0;i<start;i++)
-									{
-										tmp[i]=0;
-									}
-
-									j=0;
-
-									for(i=start;i<end;i++)
-									{
-										tmp[i]=tmp_buff[j];
-										j++;
-									}
-
-									for(i=end;i<48;i++)
-									{
-										tmp[i]=0;
-									}
-
-								}
-
-
-								spi_write(printer_dev.spi_device, addr, 48);
-								rotate(2);
-
-								memset(envy,0,48);
-
-							}  // height - ends
-						}  // Tiny -ends
-
-						// Small font - starts
-						if(size==2)
-						{
-							memset(envy,0,48);
-
-							//	for(height=0;height<15;height++)  /********** Changed **********/
-							for(height=0;height<17;height++)
-							{
-								for(width=1;width<=41 && width<(data_size-3);width++)
-								{
-									if(font==1)
-									{
-										switch(fontstyle){
-											case 1:
-												envy[width]=Unispace10reg[data[width]][height];
-												break;
-											case 2:
-												envy[width]=BitstreamVeraSansMono11reg[data[width]][height];
-												break;
-											case 3:
-												envy[width]=Consolas11reg[data[width]][height];
-												break;
-											default:
-												envy[width]=Unispace10reg[data[width]][height];
-												break;
-										}
-
-									}
-									else if(font==2)
-									{
-										switch(fontstyle){
-											case 1:
-												envy[width]=Unispace10bold[data[width]][height];
-												break;
-											case 2:
-												envy[width]=BitstreamVeraSansMono11bold[data[width]][height];
-												break;
-											case 3:
-												envy[width]=Consolas11bold[data[width]][height];
-												break;
-											default:
-												envy[width]=Unispace10bold[data[width]][height];
-												break;
-										}
-									}
-								}
-
-								// 10
-								tmp_buff[0]=((envy[1] & 0xff00) >> 8 );
-								tmp_buff[1]=((envy[1] & 0x00c0) | ((envy[2] & 0xfc00) >> 10));
-								tmp_buff[2]=(((envy[2] & 0x03c0) >> 2 ) | ((envy[3] & 0xf000) >> 12));
-								tmp_buff[3]=(((envy[3] & 0x0fc0) >> 4 ) | ((envy[4] & 0xc000) >> 14));
-								tmp_buff[4]=((envy[4] & 0x3fc0) >> 6 );
-
-								tmp_buff[5]=((envy[5] & 0xff00) >> 8 );
-								tmp_buff[6]=((envy[5] & 0x00c0) | ((envy[6] & 0xfc00) >> 10));
-								tmp_buff[7]=(((envy[6] & 0x03c0) >> 2 ) | ((envy[7] & 0xf000) >> 12));
-								tmp_buff[8]=(((envy[7] & 0x0fc0) >> 4 ) | ((envy[8] & 0xc000) >> 14));
-								tmp_buff[9]=((envy[8] & 0x3fc0) >> 6 );
-
-								tmp_buff[10]=((envy[9] & 0xff00) >> 8 );
-								tmp_buff[11]=((envy[9] & 0x00c0) | ((envy[10] & 0xfc00) >> 10));
-								tmp_buff[12]=(((envy[10] & 0x03c0) >> 2 ) | ((envy[11] & 0xf000) >> 12));
-								tmp_buff[13]=(((envy[11] & 0x0fc0) >> 4 ) | ((envy[12] & 0xc000) >> 14));
-								tmp_buff[14]=((envy[12] & 0x3fc0) >> 6 );
-
-								tmp_buff[15]=((envy[13] & 0xff00) >> 8 );
-								tmp_buff[16]=((envy[13] & 0x00c0) | ((envy[14] & 0xfc00) >> 10));
-								tmp_buff[17]=(((envy[14] & 0x03c0) >> 2 ) | ((envy[15] & 0xf000) >> 12));
-								tmp_buff[18]=(((envy[15] & 0x0fc0) >> 4 ) | ((envy[16] & 0xc000) >> 14));
-								tmp_buff[19]=((envy[16] & 0x3fc0) >> 6 );
-
-								tmp_buff[20]=((envy[17] & 0xff00) >> 8 );
-								tmp_buff[21]=((envy[17] & 0x00c0) | ((envy[18] & 0xfc00) >> 10));
-								tmp_buff[22]=(((envy[18] & 0x03c0) >> 2 ) | ((envy[19] & 0xf000) >> 12));
-								tmp_buff[23]=(((envy[19] & 0x0fc0) >> 4 ) | ((envy[20] & 0xc000) >> 14));
-								tmp_buff[24]=((envy[20] & 0x3fc0) >> 6 );
-
-								tmp_buff[25]=((envy[21] & 0xff00) >> 8 );
-								tmp_buff[26]=((envy[21] & 0x00c0) | ((envy[22] & 0xfc00) >> 10));
-								tmp_buff[27]=(((envy[22] & 0x03c0) >> 2 ) | ((envy[23] & 0xf000) >> 12));
-								tmp_buff[28]=(((envy[23] & 0x0fc0) >> 4 ) | ((envy[24] & 0xc000) >> 14));
-								tmp_buff[29]=((envy[24] & 0x3fc0) >> 6 );
-
-								tmp_buff[30]=((envy[25] & 0xff00) >> 8 );
-								tmp_buff[31]=((envy[25] & 0x00c0) | ((envy[26] & 0xfc00) >> 10));
-								tmp_buff[32]=(((envy[26] & 0x03c0) >> 2 ) | ((envy[27] & 0xf000) >> 12));
-								tmp_buff[33]=(((envy[27] & 0x0fc0) >> 4 ) | ((envy[28] & 0xc000) >> 14));
-								tmp_buff[34]=((envy[28] & 0x3fc0) >> 6 );
-
-								tmp_buff[35]=((envy[29] & 0xff00) >> 8 );
-								tmp_buff[36]=((envy[29] & 0x00c0) | ((envy[30] & 0xfc00) >> 10));
-								tmp_buff[37]=(((envy[30] & 0x03c0) >> 2 ) | ((envy[31] & 0xf000) >> 12));
-								tmp_buff[38]=(((envy[31] & 0x0fc0) >> 4 ) | ((envy[32] & 0xc000) >> 14));
-								tmp_buff[39]=((envy[32] & 0x3fc0) >> 6 );
-
-								tmp_buff[40]=((envy[33] & 0xff00) >> 8 );
-								tmp_buff[41]=((envy[33] & 0x00c0) | ((envy[34] & 0xfc00) >> 10));
-								tmp_buff[42]=(((envy[34] & 0x03c0) >> 2 ) | ((envy[35] & 0xf000) >> 12));
-								tmp_buff[43]=(((envy[35] & 0x0fc0) >> 4 ) | ((envy[36] & 0xc000) >> 14));
-								tmp_buff[44]=((envy[36] & 0x3fc0) >> 6 );
-
-								tmp_buff[45]=((envy[37] & 0xff00) >> 8 );
-								tmp_buff[46]=((envy[37] & 0x00c0) | ((envy[38] & 0xfc00) >> 10));
-								tmp_buff[47]=(((envy[38] & 0x03c0) >> 2 ) | ((envy[39] & 0xf000) >> 12));
-								tmp_buff[48]=(((envy[39] & 0x0fc0) >> 4 ) | ((envy[40] & 0xc000) >> 14));
-								tmp_buff[49]=((envy[40] & 0x3fc0) >> 6 );
-
-
-								if(data_length>=38)
-								{
-									data_length=38;
-								}
-
-								if(allignment==1) // left allignment
-								{
-									start=((data_size-4)*12);
-									start=384-start;
-									start=((start/8));
-									start=48-start;
-
-									for(i=0;i<start;i++)
-									{
-										tmp[i]=tmp_buff[i];
-									}
-
-									j=0;
-
-									for(i=start;i<48;i++)
-									{
-										tmp[i]=0;
-									}
-								}
-
-								else if(allignment==2) // right allignment
-								{
-									start=((data_size-4)*10);
-									start=384-start;
-									start=((start/8));
-
-									for(i=0;i<start;i++)
-									{
-										tmp[i]=0;
-									}
-
-									j=0;
-
-									for(i=start;i<48;i++)
-									{
-										tmp[i]=tmp_buff[j];
-										j++;
-									}
-								}
-
-								else if(allignment==3) // center allignment
-								{
-									start=((data_size-4)*10);
-									start=384-start;
-									start=((start/2)+(start%2));
-									start=((start/8));
-									end=((data_size-4)*10);
-									end=((end/8)+(end%8));
-									end=(start+end);
-
-									for(i=0;i<start;i++)
-									{
-										tmp[i]=0;
-									}
-
-									j=0;
-
-									for(i=start;i<end;i++)
-									{
-										tmp[i]=tmp_buff[j];
-										j++;
-									}
-
-									for(i=end;i<48;i++)
-									{
-										tmp[i]=0;
-									}
-
-								}
-
-								spi_write(printer_dev.spi_device, addr, 48);
-								rotate(2);
-
-								memset(envy,0,48);
-
-							}  // height - ends
-						}  // small -ends
-
-
-
-
-						// Medium -starts
-						if(size==3)
-						{
-							memset(envy,0,48);
-
-							for(height=0;height<21;height++)
 							{
 								for(width=1;width<=32 && width<(data_size-3);width++)
 								{
 
 									if(font==1)
 									{
-
-										switch(fontstyle){
-											case 1:
-												envy[width]=UnispaceMEDIUMreg[data[width]][height];
-												break;
-											case 2:
-												envy[width]=BitstreamVeraSansMono13reg[data[width]][height];
-												break;
-											case 3:
-												envy[width]=ConsolasMreg[data[width]][height];
-												break;
-											default:
-												envy[width]=UnispaceMEDIUMreg[data[width]][height];
-												break;
-										}
-
-									}
-									else if(font==2)
-									{
-										switch(fontstyle){
-											case 1:
-												envy[width]=UnispaceMEDIUMbold[data[width]][height];
-												break;
-											case 2:
-												envy[width]=BitstreamVeraSansMono13bold[data[width]][height];
-												break;
-											case 3:
-												envy[width]=ConsolasMbold[data[width]][height];
-												break;
-											default:
-												envy[width]=UnispaceMEDIUMbold[data[width]][height];
-												break;
-										}
+										envy[width]=IBM[data[width]][height];
 
 									}
 
 								}
 
-								/// 12
+								// Font cell width pixel (12)
 								tmp_buff[0]=((envy[1] & 0xff00) >> 8 );
 								tmp_buff[1]=((envy[1] & 0x00f0) | ((envy[2] & 0xf000) >> 12));
 								tmp_buff[2]=((envy[2] & 0x0ff0) >> 4);
@@ -1027,313 +583,65 @@ static void printer_prepare_spi_message(void)
 
 
 								spi_write(printer_dev.spi_device, addr, 48);
-								rotate(3);
+								gpio_direction_output(134,1);
+								gpio_direction_output(135,1);
+								gpio_direction_output(136,1);
+									rotate(2);
+								gpio_direction_output(134,0);
+								gpio_direction_output(135,0);
+								gpio_direction_output(136,0);
+
 								memset(envy,0,48);
-							}  // height - ends
-						}  // medium -ends
-
-
-						// Large - starts
-						if(size==4)
-						{
-							memset(envy,0,48);
-
-							for(height=0;height<26;height++)
-							{
-								for(width=1;width<=31 && width<(data_size-3);width++)
-								{
-									if(font==1)
-									{
-										switch(fontstyle) {
-											case 1:
-												envy[width]=UnispaceLARGEreg[data[width]][height];
-												break;
-											case 2:
-												envy[width]=BitstreamVeraSansMono17reg[data[width]][height];
-												break;
-											case 3:
-												envy[width]=ConsolasLreg[data[width]][height];
-												break;
-											default:
-												envy[width]=UnispaceLARGEreg[data[width]][height];
-												break;
-										}
-									}
-									else if(font==2)
-									{
-										switch(fontstyle) {
-											case 1:
-												envy[width]=UnispaceLARGEbold[data[width]][height];
-												break;
-											case 2:
-												envy[width]=BitstreamVeraSansMono17bold[data[width]][height];
-												break;
-											case 3:
-												envy[width]=ConsolasLbold[data[width]][height];
-												break;
-											default:
-												envy[width]=UnispaceLARGEbold[data[width]][height];
-												break;
-										}
-									}
-
-								}
-
-								int count_2,pixel_array_count=0,temp_var=0, char_pixel_data, bit_position=0;
-								int width_s=14;
-
-								for(i=1;i<28;i++)
-								{
-									char_pixel_data=envy[i];
-									for(count_2 = 0; count_2 < width_s; count_2++)
-									{
-										if (char_pixel_data & 0x8000)
-											temp_var |= 0x01;
-										else
-											temp_var |= 0x00;
-										bit_position++;
-										if (bit_position > 7)
-										{
-											tmp_buff[pixel_array_count] = temp_var;
-											temp_var = 0;
-											bit_position = 0;
-											pixel_array_count++;
-										}
-										char_pixel_data = char_pixel_data << 1;
-										temp_var = temp_var << 1;
-									}
-									/*
-									   if(bit_position <8)
-									   {
-									   temp_var = temp_var << (7 - bit_position);
-									   tmp_buff[pixel_array_count] = temp_var;
-									   temp_var = 0;
-									   bit_position = 0;
-									   }
-									 */
-								}
-								/*
-								// 16
-
-								tmp_buff[0]=((envy[1] & 0xff00) >> 8 );
-								tmp_buff[1]=(envy[1] & 0x00ff);
-								tmp_buff[2]=((envy[2] & 0xff00) >> 8 );
-								tmp_buff[3]=(envy[2] & 0x00ff);
-								tmp_buff[4]=((envy[3] & 0xff00) >> 8 );
-								tmp_buff[5]=(envy[3] & 0x00ff);
-								tmp_buff[6]=((envy[4] & 0xff00) >> 8 );
-								tmp_buff[7]=(envy[4] & 0x00ff);
-								tmp_buff[8]=((envy[5] & 0xff00) >> 8 );
-								tmp_buff[9]=(envy[5] & 0x00ff);
-								tmp_buff[10]=((envy[6] & 0xff00) >> 8 );
-								tmp_buff[11]=(envy[6] & 0x00ff);
-								tmp_buff[12]=((envy[7] & 0xff00) >> 8 );
-								tmp_buff[13]=(envy[7] & 0x00ff);
-								tmp_buff[14]=((envy[8] & 0xff00) >> 8 );
-								tmp_buff[15]=(envy[8] & 0x00ff);
-								tmp_buff[16]=((envy[9] & 0xff00) >> 8 );
-								tmp_buff[17]=(envy[9] & 0x00ff);
-								tmp_buff[18]=((envy[10] & 0xff00) >> 8 );
-								tmp_buff[19]=(envy[10] & 0x00ff);
-								tmp_buff[20]=((envy[11] & 0xff00) >> 8 );
-								tmp_buff[21]=(envy[11] & 0x00ff);
-								tmp_buff[22]=((envy[12] & 0xff00) >> 8 );
-								tmp_buff[23]=(envy[12] & 0x00ff);
-								tmp_buff[24]=((envy[13] & 0xff00) >> 8 );
-								tmp_buff[25]=(envy[13] & 0x00ff);
-								tmp_buff[26]=((envy[14] & 0xff00) >> 8 );
-								tmp_buff[27]=(envy[14] & 0x00ff);
-								tmp_buff[28]=((envy[15] & 0xff00) >> 8 );
-								tmp_buff[29]=(envy[15] & 0x00ff);
-								tmp_buff[30]=((envy[16] & 0xff00) >> 8 );
-								tmp_buff[31]=(envy[16] & 0x00ff);
-								tmp_buff[32]=((envy[17] & 0xff00) >> 8 );
-								tmp_buff[33]=(envy[17] & 0x00ff);
-								tmp_buff[34]=((envy[18] & 0xff00) >> 8 );
-								tmp_buff[35]=(envy[18] & 0x00ff);
-								tmp_buff[36]=((envy[19] & 0xff00) >> 8 );
-								tmp_buff[37]=(envy[19] & 0x00ff);
-								tmp_buff[38]=((envy[20] & 0xff00) >> 8 );
-								tmp_buff[39]=(envy[20] & 0x00ff);
-								tmp_buff[40]=((envy[21] & 0xff00) >> 8 );
-								tmp_buff[41]=(envy[21] & 0x00ff);
-								tmp_buff[42]=((envy[22] & 0xff00) >> 8 );
-								tmp_buff[43]=(envy[22] & 0x00ff);
-								tmp_buff[44]=((envy[23] & 0xff00) >> 8 );
-								tmp_buff[45]=(envy[23] & 0x00ff);
-								tmp_buff[46]=((envy[24] & 0xff00) >> 8 );
-								tmp_buff[47]=(envy[24] & 0x00ff);
-								 */
-
-								/*
-								   tmp_buff[0]=((envy[1] & 0xff00) >> 8 );
-								   tmp_buff[1]=(envy[1] & 0x00fe) | ((envy[2] & 0xf000) >> 15);
-								   tmp_buff[2]=((envy[2] & 0x7f00) << 1 ) >> 8;
-								   tmp_buff[3]=(envy[2] & 0x00fe) | ((envy[3] & 0xf000) >> 15);
-								   tmp_buff[4]=((envy[3] & 0x7f00) << 1 ) >> 8;
-
-								   tmp_buff[5]=(envy[3] & 0x00fe) | ((envy[4] & 0xf000) >> 15);
-								   tmp_buff[6]=((envy[4] & 0x7f00) << 1 ) >> 8;
-								   tmp_buff[7]=(envy[4] & 0x00fe) | ((envy[5] & 0xf000) >> 15);
-								   tmp_buff[8]=((envy[5] & 0x7f00) << 1 ) >> 8;
-
-								   tmp_buff[9]=(envy[5] & 0x00fe) | ((envy[6] & 0xf000) >> 15);
-								   tmp_buff[10]=((envy[6] & 0x7f00) << 1 ) >> 8;
-								   tmp_buff[11]=(envy[6] & 0x00fe) | ((envy[7] & 0xf000) >> 15);
-								   tmp_buff[12]=((envy[7] & 0x7f00) << 1 ) >> 8;
-
-								   tmp_buff[13]=(envy[7] & 0x00fe) | ((envy[8] & 0xf000) >> 15);
-								   tmp_buff[14]=((envy[8] & 0x7f00) << 1 ) >> 8;
-								   tmp_buff[15]=(envy[8] & 0x00fe) | ((envy[9] & 0xf000) >> 15);
-								   tmp_buff[16]=((envy[9] & 0x7f00) << 1 ) >> 8;
-
-								   tmp_buff[17]=(envy[9] & 0x00fe) | ((envy[10] & 0xf000) >> 15);
-								   tmp_buff[18]=((envy[10] & 0x7f00) << 1 ) >> 8;
-								   tmp_buff[19]=(envy[10] & 0x00fe) | ((envy[11] & 0xf000) >> 15);
-								   tmp_buff[20]=((envy[11] & 0x7f00) << 1 ) >> 8;
-
-								   tmp_buff[21]=(envy[11] & 0x00fe) | ((envy[12] & 0xf000) >> 15);
-								   tmp_buff[22]=((envy[12] & 0x7f00) << 1 ) >> 8;
-								   tmp_buff[23]=(envy[12] & 0x00fe) | ((envy[13] & 0xf000) >> 15);
-								   tmp_buff[24]=((envy[13] & 0x7f00) << 1 ) >> 8;
-
-								   tmp_buff[25]=(envy[13] & 0x00fe) | ((envy[14] & 0xf000) >> 15);
-								   tmp_buff[26]=((envy[14] & 0x7f00) << 1 ) >> 8;
-								   tmp_buff[27]=(envy[14] & 0x00fe) | ((envy[15] & 0xf000) >> 15);
-								   tmp_buff[28]=((envy[15] & 0x7f00) << 1 ) >> 8;
-
-								   tmp_buff[29]=(envy[15] & 0x00fe) | ((envy[16] & 0xf000) >> 15);
-								   tmp_buff[30]=((envy[12] & 0x7f00) << 1 ) >> 8;
-								   tmp_buff[31]=(envy[12] & 0x00fe) | ((envy[13] & 0xf000) >> 15);
-								   tmp_buff[32]=((envy[13] & 0x7f00) << 1 ) >> 8;
-
-								   tmp_buff[33]=(envy[11] & 0x00fe) | ((envy[12] & 0xf000) >> 15);
-								   tmp_buff[34]=((envy[12] & 0x7f00) << 1 ) >> 8;
-								   tmp_buff[35]=(envy[12] & 0x00fe) | ((envy[13] & 0xf000) >> 15);
-								   tmp_buff[36]=((envy[13] & 0x7f00) << 1 ) >> 8;
-
-								   tmp_buff[37]=(envy[11] & 0x00fe) | ((envy[12] & 0xf000) >> 15);
-								   tmp_buff[38]=((envy[12] & 0x7f00) << 1 ) >> 8;
-								   tmp_buff[39]=(envy[12] & 0x00fe) | ((envy[13] & 0xf000) >> 15);
-								   tmp_buff[40]=((envy[13] & 0x7f00) << 1 ) >> 8;
-
-								   tmp_buff[41]=(envy[11] & 0x00fe) | ((envy[12] & 0xf000) >> 15);
-								   tmp_buff[42]=((envy[12] & 0x7f00) << 1 ) >> 8;
-								   tmp_buff[43]=(envy[12] & 0x00fe) | ((envy[13] & 0xf000) >> 15);
-								   tmp_buff[44]=((envy[13] & 0x7f00) << 1 ) >> 8;
-
-								   tmp_buff[45]=(envy[11] & 0x00fe) | ((envy[12] & 0xf000) >> 15);
-								   tmp_buff[46]=((envy[12] & 0x7f00) << 1 ) >> 8;
-								   tmp_buff[47]=(envy[12] & 0x00fe) | ((envy[13] & 0xf000) >> 15);
-								   tmp_buff[48]=((envy[13] & 0x7f00) << 1 ) >> 8;
-
-								 */		
-								if(data_length>=31)
-								{
-									data_length=31;
-								}
-
-								if(allignment==1) // left allignment
-								{
-									for(i=0;i<48;i++)
-									{
-										tmp[i]=tmp_buff[i];
-									}
-								}
-
-								else if(allignment==2) // right allignment
-								{
-									start=((data_size-4)*16);
-									start=384-start;
-									start=((start/8));
-
-									for(i=0;i<start;i++)
-									{
-										tmp[i]=0;
-									}
-
-									j=0;
-
-									for(i=start;i<48;i++)
-									{
-										tmp[i]=tmp_buff[j];
-										j++;
-									}
-								}
-
-								else if(allignment==3) // center allignment
-								{
-									start=((data_size-4)*16);
-									start=384-start;
-									start=((start/2)-(start%2));
-									start=((start/8));
-									end=((data_size-4)*16);
-									end=((end/8)+(end%8));
-									end=(start+end);
-
-									for(i=0;i<start;i++)
-									{
-										tmp[i]=0;
-									}
-
-									j=0;
-
-									for(i=start;i<end;i++)
-									{
-										tmp[i]=tmp_buff[j];
-										j++;
-									}
-
-									for(i=end;i<48;i++)
-									{
-										tmp[i]=0;
-									}
-
-								}
-								spi_write(printer_dev.spi_device, addr, 48);
-								rotate(3);
-								memset(envy,0,48);
-							}  // height - ends
-						}  // Large -ends
-
-						spi_write(printer_dev.spi_device, addr, 48);
-						rotate(2); /******** Without  line spacing *******/
-						memset(tmp,0,48);
-						memset(tmp_buff,0,48);
+							}
+						}
 					}
-				}
 
+				memset(tmp,0,48);
+				memset(tmp_buff,0,48);
 				Temp=0;
 				break;
 
-				/*******************************Language Pixel Printing******************************/
+				// --------------------- IMAGE PRINTING ----------------------------
 
-			case 44:  // L - Language Pixel Printing
+			case 41: // I - Image printing
 
-				//printk("Language Printing");
-				for(k=2;k<=6;k++)
-				{
-					g[k]=(**(buff))-32;
-					++(*buff);
-				}
+				memset(filepath,0x00,128);
+				unsigned int PrintCount=0;
 
 				low_bat=0;
 
+				for(k=2;k<=5;k++)
+				{
+					g[k]=g[k+4];
+				}
+				Temp = 0;
 				Noofbytes();
-				//printk("No of Bytes = %d\n",Temp);
 
 				memset(addr,0x00,48);
 				memset(tmp,0x00,48);
 				memset(buf1,0x00,1000000);
 
-				f = filp_open("/tmp/langbuff", O_RDONLY, 0);
+				sprintf(filepath,"/usr/share/status/PRINTER_image%c%c",(char *)g[6], (char *)g[7]);
+				printk("FilePath: %s\n", filepath);
 
-				if(f == NULL)
-				{
-					printk(KERN_ALERT "filp_open error!!.\n");
-				}
-				else
-				{
+				f = filp_open(filepath, O_RDONLY, 0);
+				if(IS_ERR(f)){
+					printk(" [OPTIGOV] custom image file_open failed filp_open\n");
+					f = filp_open("/usr/share/status/PRINTER_image", O_RDONLY, 0);
+					if(IS_ERR(f)){
+						printk(" [OPTIGOV] default image file_open failed filp_open\n");
+						return NULL; // <FAILS HERE
+					}else{
+						fs = get_fs();
+						set_fs(get_ds());
+						f->f_op->read(f, buf1, 1000000, &f->f_pos);
+						//                vfs_read(f, buf1, 1000000, &f->f_pos);
+						set_fs(fs);
+						value=buf1;
+						filp_close(f, NULL);
+					}
+					// return NULL; // <FAILS HERE
+				}else{
 					fs = get_fs();
 					set_fs(get_ds());
 					f->f_op->read(f, buf1, 1000000, &f->f_pos);
@@ -1343,439 +651,65 @@ static void printer_prepare_spi_message(void)
 					filp_close(f, NULL);
 				}
 
-
-				//            value=langprintdata;
-
-
-				even=0;
-				odd=1;
-
+				lineprint_status=0;
 				for(x=0;x<Temp;x++)
 				{
+					if(printer_stop_status==0) {
+						lineprint_status++;
+						do_gettimeofday(&t);
+						printer_counter=line_wise;
+					}
 					for(i=0;i<49;i++)
 					{
 						if((*value)!=10)
 						{
-							pbyte.bit0=*value;
+							data1=*value;
 							value++;
-							pbyte.bit1=*value;
+							y++;
+							data2=*value;
 							value++;
-							pbyte.bit2=*value;
-							value++;
-							pbyte.bit3=*value;
-							value++;
-							pbyte.bit4=*value;
-							value++;
-							pbyte.bit5=*value;
-							value++;
-							pbyte.bit6=*value;
-							value++;
-							pbyte.bit7=*value;
-							value++;
+							y++;
 
-							tmp[i] = *(char *) (&pbyte);
-							//                        printk("%.2x",*(char*) (&pbyte));
+							data1=data_read[data1];
+							data2=data_read[data2];
 
-							pbyte.bit0='\0';
-							pbyte.bit1='\0';
-							pbyte.bit2='\0';
-							pbyte.bit3='\0';
-							pbyte.bit4='\0';
-							pbyte.bit5='\0';
-							pbyte.bit6='\0';
-							pbyte.bit7='\0';
+							data3=(((data1&0x0f)<<4) | (data2&0x0f));
+							w=7;
+							q=0;
+
+							while(w>=0)
+							{
+								temp_image |= (((data3 >> q)&1)<< w);
+								w--;
+								q++;
+							}
+							tmp[i]=temp_image;
+							temp_image=0;
+
 						}
 
 						else
 						{
 							i=49;
 							value++;
-							//                        printk("\n");
 						}
 
 					}
 					spi_write(printer_dev.spi_device, addr, 48);
 					rotate(1);
 				}
-				//            memset(addr,0x00,sizeof(addr));
-				memset(tmp,0x00,sizeof(tmp));
-				memset(langprintdata,0x00,sizeof(langprintdata));
-				spi_write(printer_dev.spi_device, addr, 48);
-
 				rotate(5);
 
 				Temp=0;
 				paper_Temp=0;
 
 				break;
-
-				/*
-				   case 44:  // L - Language Pixel Printing
-
-				   for(k=2;k<=6;k++)
-				   {
-				   g[k]=(**(buff))-32;
-				   ++(*buff);
-				   }
-
-				   low_bat=0;
-
-				   Noofbytes();
-				//printk("No of Bytes = %d\n",Temp);
-
-				memset(addr,0x00,48);
-				memset(tmp,0x00,48);
-				memset(buf1,0x00,1000000);
-
-				f = filp_open("/usr/share/status/PRINTER_lang", O_RDONLY, 0);
-
-				if(f == NULL)
-				{
-				printk(KERN_ALERT "filp_open error!!.\n");
-				}
-				else
-				{
-				fs = get_fs();
-				set_fs(get_ds());
-				f->f_op->read(f, buf1, 1000000, &f->f_pos);
-				//                vfs_read(f, buf1, 1000000, &f->f_pos);
-				set_fs(fs);
-				value=buf1;
-				filp_close(f, NULL);
-				}
-
-				//            value=langprintdata;
-				even=0;
-				odd=1;
-
-				for(x=0;x<Temp;x++)
-				{
-				for(i=0;i<49;i++)
-				{
-				if((*value)!=10)
-				{
-				data1=*value;
-				value++;
-				y++;
-				data2=*value;
-				value++;
-				y++;
-
-				data1=data_read[data1];
-				data2=data_read[data2];
-
-				data3=(((data1&0x0f)<<4) | (data2&0x0f));
-
-				tmp[i]=data3;
-				data3=0;
-				}
-
-				else
-				{
-				i=49;
-				value++;
-				}
-
-				}
-				spi_write(printer_dev.spi_device, addr, 48);
-				rotate(1);
-				}
-				//            memset(addr,0x00,sizeof(addr));
-				memset(tmp,0x00,sizeof(tmp));
-				spi_write(printer_dev.spi_device, addr, 48);
-
-				rotate(5);
-
-				Temp=0;
-				paper_Temp=0;
-
-				break;
-				*/
-
-					// --------------------- IMAGE PRINTING ----------------------------
-
-			case 41: // I - Image printing
-
-					memset(filepath,0x00,128);
-					unsigned int PrintCount=0;
-
-					for(k=2;k<6;k++)
-					{
-						g[k]=(**(buff))-32;
-						++(*buff);
-					}
-
-					low_bat=0;
-
-					Noofbytes();
-					//printk("No of Bytes = %d\n",Temp);
-
-					for(k=6;k<=7;k++)
-					{
-						g[k]=(**(buff));
-						++(*buff);
-					}
-
-					memset(addr,0x00,48);
-					memset(tmp,0x00,48);
-					memset(buf1,0x00,1000000);
-
-					sprintf(filepath,"/usr/share/status/PRINTER_image%c%c",(char *)g[6], (char *)g[7]);
-					printk("FilePath: %s\n", filepath);
-
-					f = filp_open(filepath, O_RDONLY, 0);
-					if(IS_ERR(f)){
-						printk(" [OPTIGOV] custom image file_open failed filp_open\n");
-						f = filp_open("/usr/share/status/PRINTER_image", O_RDONLY, 0);
-						if(IS_ERR(f)){
-							printk(" [OPTIGOV] default image file_open failed filp_open\n");
-							return NULL; // <FAILS HERE
-						}else{
-							fs = get_fs();
-							set_fs(get_ds());
-							f->f_op->read(f, buf1, 1000000, &f->f_pos);
-							//                vfs_read(f, buf1, 1000000, &f->f_pos);
-							set_fs(fs);
-							value=buf1;
-							filp_close(f, NULL);
-						}
-						// return NULL; // <FAILS HERE
-					}else{
-						fs = get_fs();
-						set_fs(get_ds());
-						f->f_op->read(f, buf1, 1000000, &f->f_pos);
-						//                vfs_read(f, buf1, 1000000, &f->f_pos);
-						set_fs(fs);
-						value=buf1;
-						filp_close(f, NULL);
-					}
-
-					even=0;
-					odd=1;
-
-					lineprint_status=0;
-					for(x=0;x<Temp;x++)
-					{
-						if(printer_stop_status==0) {
-							lineprint_status++;
-							do_gettimeofday(&t);
-							printer_counter=line_wise;
-						}
-						for(i=0;i<49;i++)
-						{
-							if((*value)!=10)
-							{
-								data1=*value;
-								value++;
-								y++;
-								data2=*value;
-								value++;
-								y++;
-
-								data1=data_read[data1];
-								data2=data_read[data2];
-
-								data3=(((data1&0x0f)<<4) | (data2&0x0f));
-								w=7;
-								q=0;
-
-								while(w>=0)
-								{
-									temp_image |= (((data3 >> q)&1)<< w);
-									w--;
-									q++;
-								}
-								tmp[i]=temp_image;
-								temp_image=0;
-
-							}
-
-							else
-							{
-								i=49;
-								value++;
-							}
-
-						}
-						spi_write(printer_dev.spi_device, addr, 48);
-						rotate(1);
-					}
-					rotate(5);
-
-					Temp=0;
-					paper_Temp=0;
-
-
-
-
-					break;
-					/************************** Header Image Printer*******************/
-			case 40: // H - Header Image printing
-
-					for(k=2;k<=6;k++)
-					{
-						g[k]=(**(buff))-32;
-						++(*buff);
-					}
-
-					low_bat=0;
-
-					Noofbytes();
-					//printk("No of Bytes = %d\n",Temp);
-
-					memset(addr,0x00,48);
-					memset(tmp,0x00,48);
-					memset(buf1,0x00,1000000);
-
-					f = filp_open("/usr/share/status/PRINTER_header", O_RDONLY, 0);
-
-					if(IS_ERR(f)){
-						printk(" [OPTIGOV] file_open failed filp_open\n");
-						return NULL; // <FAILS HERE
-					}else{
-						fs = get_fs();
-						set_fs(get_ds());
-						f->f_op->read(f, buf1, 1000000, &f->f_pos);
-						//                vfs_read(f, buf1, 1000000, &f->f_pos);
-						set_fs(fs);
-						value=buf1;
-						filp_close(f, NULL);
-					}
-
-					even=0;
-					odd=1;
-
-					for(x=0;x<Temp;x++)
-					{
-						for(i=0;i<49;i++)
-						{
-							if((*value)!=10)
-							{
-								data1=*value;
-								value++;
-								y++;
-								data2=*value;
-								value++;
-								y++;
-
-								data1=data_read[data1];
-								data2=data_read[data2];
-
-								data3=(((data1&0x0f)<<4) | (data2&0x0f));
-								w=7;
-								q=0;
-
-								while(w>=0)
-								{
-									temp_image |= (((data3 >> q)&1)<< w);
-									w--;
-									q++;
-								}
-								tmp[i]=temp_image;
-								temp_image=0;
-
-							}
-
-							else
-							{
-								i=49;
-								value++;
-							}
-
-						}
-						spi_write(printer_dev.spi_device, addr, 48);
-						rotate(1);
-					}
-					rotate(5);
-
-					Temp=0;
-					paper_Temp=0;
-
-					break;
-					/*****************************Footer Image Printing****************************/
-			case 38: // F - Footer Image printing
-
-					for(k=2;k<=6;k++)
-					{
-						g[k]=(**(buff))-32;
-						++(*buff);
-					}
-
-					low_bat=0;
-
-					Noofbytes();
-					//printk("No of Bytes = %d\n",Temp);
-
-					memset(addr,0x00,48);
-					memset(tmp,0x00,48);
-					memset(buf1,0x00,1000000);
-
-					f = filp_open("/usr/share/status/PRINTER_footer", O_RDONLY, 0);
-
-					if(IS_ERR(f)){
-						printk(" [OPTIGOV] file_open failed filp_open\n");
-						return NULL; // <FAILS HERE
-					}else{
-						fs = get_fs();
-						set_fs(get_ds());
-						f->f_op->read(f, buf1, 1000000, &f->f_pos);
-						//                vfs_read(f, buf1, 1000000, &f->f_pos);
-						set_fs(fs);
-						value=buf1;
-						filp_close(f, NULL);
-					}
-
-					even=0;
-					odd=1;
-					for(x=0;x<Temp;x++)
-					{
-						for(i=0;i<49;i++)
-						{
-							if((*value)!=10)
-							{
-								data1=*value;
-								value++;
-								y++;
-								data2=*value;
-								value++;
-								y++;
-
-								data1=data_read[data1];
-								data2=data_read[data2];
-
-								data3=(((data1&0x0f)<<4) | (data2&0x0f));
-								w=7;
-								q=0;
-
-								while(w>=0)
-								{
-									temp_image |= (((data3 >> q)&1)<< w);
-									w--;
-									q++;
-								}
-								tmp[i]=temp_image;
-								temp_image=0;
-
-							}
-
-							else
-							{
-								i=49;
-								value++;
-							}
-
-						}
-						spi_write(printer_dev.spi_device, addr, 48);
-						rotate(1);
-					}
-
-					rotate(5);
-
-					Temp=0;
-					paper_Temp=0;
-
-					break;
 		}
+	}
+	else
+	{
+		printk("Printer_Log: Invalid Packet\n");
+		Temp = 0;
 	}
 	memset(addr,0,sizeof(addr));
 	memset(tmp,0,sizeof(tmp));
@@ -2281,9 +1215,7 @@ static void __exit printer_exit(void)    // exit function to free all the resour
 module_init(printer_init);  // Driver always starts execution from here ( insmod ./printer.ko)
 module_exit(printer_exit);  // Driver exectues this function while exit  (rmmod  printer.ko)           
 
-MODULE_AUTHOR("Elango & SriNavamani");
+MODULE_AUTHOR("Clancor Team");
 MODULE_DESCRIPTION("printer module - SPI driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION("0.2");
-
-
