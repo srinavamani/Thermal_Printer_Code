@@ -25,7 +25,6 @@
 
 #include "motor.h"
 #include "final_font.h"
-#include "sample_font.h"
 
 //----------- Tamil Fonts included -------
 
@@ -35,7 +34,7 @@ unsigned char Get_Tamil_Array[30];
 unsigned char* tamilfont_generation(unsigned char* tamilunicode,unsigned int tamil_word_size);
 unsigned int parse_char(char c);
 char part1[2];
-int tamil_letter_count, tamil;
+int tamil_letter_count,tamil;
 char *senduart;
 
 unsigned int parse_char(char c)
@@ -53,8 +52,8 @@ unsigned int parse_char(char c)
 
 #define SPI_BUS 1
 #define SPI_BUS_CS1 0
-#define SPI_BUS_SPEED 10000000
-//#define SPI_BUS_SPEED 750000
+//#define SPI_BUS_SPEED 10000000
+#define SPI_BUS_SPEED 750000
 
 //------function decleration--------------
 
@@ -65,7 +64,6 @@ int bat_present=0;
 static unsigned char langprintdata[DATA_BUFF_SIZE];
 
 //------Driver name-----------------------
-
 const char this_driver_name[] = "printer";
 const char shared_driver_name[] = "iprinter";
 
@@ -124,7 +122,7 @@ char data_read[100];
 char data[200];
 int data_size=0,data_length,buffer_check1=0,allignment;
 int start=0,end=0,j;
-int no_of_lines=0,size,font,fontstyle;
+int no_of_lines=0,font_size,font_type;
 int width=0,height,line_wise=0;
 unsigned short int envy[50];
 char tmp_buff[48];
@@ -206,16 +204,32 @@ void rotate(int rotate_loop)
 				if(tamil == 1)
 					lp_even_rotate();
 				else
+				{
+					gpio_direction_output(134,1);
+					gpio_direction_output(135,1);
+					gpio_direction_output(136,1);
 					even_rotate();
+					gpio_direction_output(134,0);
+					gpio_direction_output(135,0);
+					gpio_direction_output(136,0);
+				}
 
 				rotate_pulse_count=2;
 			}
 			else if(rotate_pulse_count==2)
 			{
 				if(tamil == 1)
-					lp_odd_rotate();				
+					lp_odd_rotate();
 				else
+				{
+					gpio_direction_output(134,1);
+					gpio_direction_output(135,1);
+					gpio_direction_output(136,1);
 					odd_rotate();
+					gpio_direction_output(134,0);
+					gpio_direction_output(135,0);
+					gpio_direction_output(136,0);
+				}
 
 				rotate_pulse_count=1;
 			}
@@ -255,8 +269,6 @@ static void printer_prepare_spi_message(void)
 
 	memset(tmp,0x00,48);
 
-	//	printk(KERN_ALERT "length is ...........   %d  \n",length);
-
 	for(k=0;k<=5;k++)
 	{
 		g[k]=(**(buff))-32;
@@ -265,20 +277,15 @@ static void printer_prepare_spi_message(void)
 
 	Noofbytes();
 
-	printk("No of Bytes = %d\n",Temp);
-
 	for(k=6; k<Temp; k++)
 	{
 		g[k]=(**(buff))-32;
 		++(*buff);
 	}
 
-//---------------------------------------PROTOCOL starting------------------------------------------
-
-// ~	Start Byte
-// ^!	End Byte
-
-printk("%c %c %c\n",g[0]+32, g[Temp-2]+32, g[Temp-1]+32);
+	//---------------------------------------PROTOCOL starting------------------------------------------
+	// ~	Start Byte
+	// ^!	End Byte
 
 	if(g[0]+32 == '~' && g[Temp-2]+32 == '^' && g[Temp-1]+32 == '!')	// Start & End byte check
 	{
@@ -286,13 +293,12 @@ printk("%c %c %c\n",g[0]+32, g[Temp-2]+32, g[Temp-1]+32);
 
 		switch(g[1])
 		{
-			//******************** Paper feed ********************
+			//******************** Paper feed ****************************
 			case 50: // R - motor rotation
 
 				for(k=2;k<=5;k++)
-				{
 					g[k]=g[k+4];
-				}
+
 				Temp = 0;
 				Noofbytes();
 
@@ -302,11 +308,12 @@ printk("%c %c %c\n",g[0]+32, g[Temp-2]+32, g[Temp-1]+32);
 				Temp=0;
 				break;
 
-			//******************** TAMIL PRINTING ********************
+				//******************** TAMIL PRINTING *************************
 			case 52:  //T ----------------------Tamil printing  g[1]
 
 				tamil = 1;	// Flag - strobe heating for tamil fonts
 				tamil_letter_count = 0;
+				no_of_lines=0;
 
 				for(k=6;k<=Temp-4;k++)
 				{
@@ -320,29 +327,29 @@ printk("%c %c %c\n",g[0]+32, g[Temp-2]+32, g[Temp-1]+32);
 				senduart = tamilfont_generation(Get_Tamil_Array,GCu_StringSize);
 				int main_count_x=0, main_count_j=0, main_count_z=0;
 				for(main_count_x=0; main_count_x<26; main_count_x++)
-					{
-						main_count_z=0;
-						for(main_count_j=0; main_count_j<48; main_count_j++)
-							tmp[main_count_z++] = GCu_FinalBuffer2[(main_count_x*48)+main_count_j];
+				{
+					main_count_z=0;
+					for(main_count_j=0; main_count_j<48; main_count_j++)
+						tmp[main_count_z++] = GCu_FinalBuffer2[(main_count_x*48)+main_count_j];
 
-						spi_write(printer_dev.spi_device, addr, 48);
+					spi_write(printer_dev.spi_device, addr, 48);
 
-						if(g[Temp-3]+32 == 'L')	// Large Font
-							rotate(2);
-						else if(g[Temp-3]+32 == 'S')	// Small Font
-							rotate(1);
+					if(g[Temp-3]+32 == 'L')	// Large Font
+						rotate(2);
+					else if(g[Temp-3]+32 == 'S')	// Small Font
+						rotate(1);
 
-						memset(tmp, 0, 48);
-						memset(addr, 0, 48);
-						memset(Get_Tamil_Array, 0, 30);
-					}
+					memset(tmp, 0, 48);
+					memset(addr, 0, 48);
+					memset(Get_Tamil_Array, 0, 30);
+				}
 				Temp=0;
 				break;
 
 				//******************** ENGLISH PRINTING *************************
 
 			case 37:  //E ----------------------english printing  g[1]
-			
+
 				tamil = 0;
 				no_of_lines=0;
 
@@ -352,255 +359,353 @@ printk("%c %c %c\n",g[0]+32, g[Temp-2]+32, g[Temp-1]+32);
 						no_of_lines++;
 				}
 
-					buffer_check1=6;
-					lineprint_status=0;
-					for(line_wise=0;line_wise<no_of_lines;line_wise++)
+				buffer_check1=6;
+				lineprint_status=0;
+				for(line_wise=0;line_wise<no_of_lines;line_wise++)
+				{
+					if(printer_stop_status==0)
 					{
-						if(printer_stop_status==0) {
-							lineprint_status++;
-							do_gettimeofday(&t);
-							printer_counter=line_wise;
-						}
-
-						data_size=1;
-						do
-						{
-							data[data_size]=g[buffer_check1];
-							data_size++;
-							buffer_check1++;
-						} while(g[buffer_check1]+32 != '~');
-
-						buffer_check1=buffer_check1+1;
-						data_length=data_size;
-
-						// English Font analysing (Allignment & Size & Type) 
-
-						switch (data[data_size-1]) {
-							case 44:
-								allignment=1;	// Left allignment
-								break;
-							case 50:
-								allignment=2;	// Right allignment
-								break;
-							case 35:
-								allignment=3;	// Center allignment
-								break;
-						}
-
-						switch(data[data_size-3]) {
-							case 50:
-								font=1;	// Regular font
-								break;
-							case 34:
-								font=2;	// Bold font
-								break;
-							case 41:
-								font=3;	// Italic font
-								break;
-						}
-
-						switch(data[data_size-2]) {
-							case 51:	// Small font
-								size=1;
-								if(data_size>42)
-								{
-									data_size=42;
-								}
-								break;
-							case 45:	// Medium font
-								size=2;
-								if(data_size>32)
-								{
-									data_size=32;
-								}
-								break;
-							case 44:	// Large font
-								size=3;
-								if(data_size>31)
-								{
-									data_size=31;
-								}
-								break;
-						}
-
-						// ******************** Medium Font ************************
-						if(size == 1)
-						{
-							memset(envy,0,48);
-
-							for(height=0;height<13;height++)
-							{
-								for(width=1;width<=32 && width<(data_size-3);width++)
-								{
-
-									if(font==1)
-									{
-										envy[width]=IBM[data[width]][height];
-
-									}
-
-								}
-
-								// Font cell width pixel (12)
-								tmp_buff[0]=((envy[1] & 0xff00) >> 8 );
-								tmp_buff[1]=((envy[1] & 0x00f0) | ((envy[2] & 0xf000) >> 12));
-								tmp_buff[2]=((envy[2] & 0x0ff0) >> 4);
-
-								tmp_buff[3]=((envy[3] & 0xff00) >> 8 );
-								tmp_buff[4]=((envy[3] & 0x00f0) | ((envy[4] & 0xf000) >> 12));
-								tmp_buff[5]=((envy[4] & 0x0ff0) >> 4);
-
-								tmp_buff[6]=((envy[5] & 0xff00) >> 8 );
-								tmp_buff[7]=((envy[5] & 0x00f0) | ((envy[6] & 0xf000) >> 12));
-								tmp_buff[8]=((envy[6] & 0x0ff0) >> 4);
-
-								tmp_buff[9]=((envy[7] & 0xff00) >> 8 );
-								tmp_buff[10]=((envy[7] & 0x00f0) | ((envy[8] & 0xf000) >> 12));
-								tmp_buff[11]=((envy[8] & 0x0ff0) >> 4);
-
-								tmp_buff[12]=((envy[9] & 0xff00) >> 8 );
-								tmp_buff[13]=((envy[9] & 0x00f0) | ((envy[10] & 0xf000) >> 12));
-								tmp_buff[14]=((envy[10] & 0x0ff0) >> 4);
-
-								tmp_buff[15]=((envy[11] & 0xff00) >> 8 );
-								tmp_buff[16]=((envy[11] & 0x00f0) | ((envy[12] & 0xf000) >> 12));
-								tmp_buff[17]=((envy[12] & 0x0ff0) >> 4);
-
-								tmp_buff[18]=((envy[13] & 0xff00) >> 8 );
-								tmp_buff[19]=((envy[13] & 0x00f0) | ((envy[14] & 0xf000) >> 12));
-								tmp_buff[20]=((envy[14] & 0x0ff0) >> 4);
-
-								tmp_buff[21]=((envy[15] & 0xff00) >> 8 );
-								tmp_buff[22]=((envy[15] & 0x00f0) | ((envy[16] & 0xf000) >> 12));
-								tmp_buff[23]=((envy[16] & 0x0ff0) >> 4);
-
-								tmp_buff[24]=((envy[17] & 0xff00) >> 8 );
-								tmp_buff[25]=((envy[17] & 0x00f0) | ((envy[18] & 0xf000) >> 12));
-								tmp_buff[26]=((envy[18] & 0x0ff0) >> 4);
-
-								tmp_buff[27]=((envy[19] & 0xff00) >> 8 );
-								tmp_buff[28]=((envy[19] & 0x00f0) | ((envy[20] & 0xf000) >> 12));
-								tmp_buff[29]=((envy[20] & 0x0ff0) >> 4);
-
-								tmp_buff[30]=((envy[21] & 0xff00) >> 8 );
-								tmp_buff[31]=((envy[21] & 0x00f0) | ((envy[22] & 0xf000) >> 12));
-								tmp_buff[32]=((envy[22] & 0x0ff0) >> 4);
-
-								tmp_buff[33]=((envy[23] & 0xff00) >> 8 );
-								tmp_buff[34]=((envy[23] & 0x00f0) | ((envy[24] & 0xf000) >> 12));
-								tmp_buff[35]=((envy[24] & 0x0ff0) >> 4);
-
-								tmp_buff[36]=((envy[25] & 0xff00) >> 8 );
-								tmp_buff[37]=((envy[25] & 0x00f0) | ((envy[26] & 0xf000) >> 12));
-								tmp_buff[38]=((envy[26] & 0x0ff0) >> 4);
-
-								tmp_buff[39]=((envy[27] & 0xff00) >> 8 );
-								tmp_buff[40]=((envy[27] & 0x00f0) | ((envy[28] & 0xf000) >> 12));
-								tmp_buff[41]=((envy[28] & 0x0ff0) >> 4);
-
-								tmp_buff[42]=((envy[29] & 0xff00) >> 8 );
-								tmp_buff[43]=((envy[29] & 0x00f0) | ((envy[30] & 0xf000) >> 12));
-								tmp_buff[44]=((envy[30] & 0x0ff0) >> 4);
-
-								tmp_buff[45]=((envy[31] & 0xff00) >> 8 );
-								tmp_buff[46]=((envy[31] & 0x00f0) | ((envy[32] & 0xf000) >> 12));
-								tmp_buff[47]=((envy[32] & 0x0ff0) >> 4);
-
-								if(data_length>=32)
-								{
-									data_length=32;
-								}
-
-								if(allignment==1) // left allignment
-								{
-									start=((data_size-4)*12);
-									start=384-start;
-									start=((start/8));
-									start=48-start;
-
-									for(i=0;i<start;i++)
-									{
-										tmp[i]=tmp_buff[i];
-									}
-
-									j=0;
-
-									for(i=start;i<48;i++)
-									{
-										tmp[i]=0;
-									}
-								}
-
-								else if(allignment==2) // right allignment
-								{
-									start=((data_size-4)*12);
-									start=384-start;
-									start=((start/8));
-
-									for(i=0;i<start;i++)
-									{
-										tmp[i]=0;
-									}
-
-									j=0;
-
-									for(i=start;i<48;i++)
-									{
-										tmp[i]=tmp_buff[j];
-										j++;
-									}
-								}
-
-								else if(allignment==3) // center allignment
-								{
-									start=((data_size-4)*12);
-									start=384-start;
-									start=((start/2)+(start%2));
-									start=((start/8));
-									end=((data_size-4)*12);
-									end=((end/8)+(end%8));
-									end=(start+end);
-
-									for(i=0;i<start;i++)
-									{
-										tmp[i]=0;
-									}
-
-									j=0;
-
-									for(i=start;i<end;i++)
-									{
-										tmp[i]=tmp_buff[j];
-										j++;
-									}
-
-									for(i=end;i<48;i++)
-									{
-										tmp[i]=0;
-									}
-
-								}
-
-
-								spi_write(printer_dev.spi_device, addr, 48);
-								gpio_direction_output(134,1);
-								gpio_direction_output(135,1);
-								gpio_direction_output(136,1);
-									rotate(2);
-								gpio_direction_output(134,0);
-								gpio_direction_output(135,0);
-								gpio_direction_output(136,0);
-
-								memset(envy,0,48);
-							}
-						}
+						lineprint_status++;
+						do_gettimeofday(&t);
+						printer_counter=line_wise;
 					}
 
-				memset(tmp,0,48);
-				memset(tmp_buff,0,48);
+					data_size=1;
+					do
+					{
+						data[data_size]=g[buffer_check1];
+						data_size++;
+						buffer_check1++;
+					} while(g[buffer_check1]!=94);
+
+					buffer_check1=buffer_check1+1;
+					data_length=data_size;
+
+					//---------------------------------------------------------------------------------------------
+					switch (data[data_size-1])
+					{
+						case 44:
+							allignment = 1;	// Left allignment
+							break;
+						case 50:
+							allignment = 2;	// Right allignment
+							break;
+						case 35:
+							allignment = 3;	// Center allignment
+							break;
+					}
+
+					switch(data[data_size-3])
+					{
+						case 50:
+							font_type = 1;	// Regular
+							break;
+						case 34:
+							font_type = 2;	// Bold
+							break;
+					}
+
+					switch(data[data_size-2])
+					{
+						case 51:
+							font_size=1;		// Small
+							if(data_size>42)
+								data_size=42;
+							break;
+						case 45:
+							font_size=2;		// Medium
+							if(data_size>36)
+								data_size=36;
+							break;
+					}
+
+					//********** Small Font Printing **********
+					if(font_size == 1)
+					{
+						memset(envy,0,48);
+
+						for(height=0;height<10;height++)
+						{
+							for(width=1;width<=41 && width<(data_size-3);width++)
+							{
+								if(font_type == 1)
+									envy[width]=Small_Regular[data[width]][height];
+							}
+
+							// Font width pixel count (10) 
+							tmp_buff[0]=((envy[1] & 0xff00) >> 8 );
+							tmp_buff[1]=((envy[1] & 0x00c0) | ((envy[2] & 0xfc00) >> 10));
+							tmp_buff[2]=(((envy[2] & 0x03c0) >> 2 ) | ((envy[3] & 0xf000) >> 12));
+							tmp_buff[3]=(((envy[3] & 0x0fc0) >> 4 ) | ((envy[4] & 0xc000) >> 14));
+							tmp_buff[4]=((envy[4] & 0x3fc0) >> 6 );
+
+							tmp_buff[5]=((envy[5] & 0xff00) >> 8 );
+							tmp_buff[6]=((envy[5] & 0x00c0) | ((envy[6] & 0xfc00) >> 10));
+							tmp_buff[7]=(((envy[6] & 0x03c0) >> 2 ) | ((envy[7] & 0xf000) >> 12));
+							tmp_buff[8]=(((envy[7] & 0x0fc0) >> 4 ) | ((envy[8] & 0xc000) >> 14));
+							tmp_buff[9]=((envy[8] & 0x3fc0) >> 6 );
+
+							tmp_buff[10]=((envy[9] & 0xff00) >> 8 );
+							tmp_buff[11]=((envy[9] & 0x00c0) | ((envy[10] & 0xfc00) >> 10));
+							tmp_buff[12]=(((envy[10] & 0x03c0) >> 2 ) | ((envy[11] & 0xf000) >> 12));
+							tmp_buff[13]=(((envy[11] & 0x0fc0) >> 4 ) | ((envy[12] & 0xc000) >> 14));
+							tmp_buff[14]=((envy[12] & 0x3fc0) >> 6 );
+
+							tmp_buff[15]=((envy[13] & 0xff00) >> 8 );
+							tmp_buff[16]=((envy[13] & 0x00c0) | ((envy[14] & 0xfc00) >> 10));
+							tmp_buff[17]=(((envy[14] & 0x03c0) >> 2 ) | ((envy[15] & 0xf000) >> 12));
+							tmp_buff[18]=(((envy[15] & 0x0fc0) >> 4 ) | ((envy[16] & 0xc000) >> 14));
+							tmp_buff[19]=((envy[16] & 0x3fc0) >> 6 );
+
+							tmp_buff[20]=((envy[17] & 0xff00) >> 8 );
+							tmp_buff[21]=((envy[17] & 0x00c0) | ((envy[18] & 0xfc00) >> 10));
+							tmp_buff[22]=(((envy[18] & 0x03c0) >> 2 ) | ((envy[19] & 0xf000) >> 12));
+							tmp_buff[23]=(((envy[19] & 0x0fc0) >> 4 ) | ((envy[20] & 0xc000) >> 14));
+							tmp_buff[24]=((envy[20] & 0x3fc0) >> 6 );
+
+							tmp_buff[25]=((envy[21] & 0xff00) >> 8 );
+							tmp_buff[26]=((envy[21] & 0x00c0) | ((envy[22] & 0xfc00) >> 10));
+							tmp_buff[27]=(((envy[22] & 0x03c0) >> 2 ) | ((envy[23] & 0xf000) >> 12));
+							tmp_buff[28]=(((envy[23] & 0x0fc0) >> 4 ) | ((envy[24] & 0xc000) >> 14));
+							tmp_buff[29]=((envy[24] & 0x3fc0) >> 6 );
+
+							tmp_buff[30]=((envy[25] & 0xff00) >> 8 );
+							tmp_buff[31]=((envy[25] & 0x00c0) | ((envy[26] & 0xfc00) >> 10));
+							tmp_buff[32]=(((envy[26] & 0x03c0) >> 2 ) | ((envy[27] & 0xf000) >> 12));
+							tmp_buff[33]=(((envy[27] & 0x0fc0) >> 4 ) | ((envy[28] & 0xc000) >> 14));
+							tmp_buff[34]=((envy[28] & 0x3fc0) >> 6 );
+
+							tmp_buff[35]=((envy[29] & 0xff00) >> 8 );
+							tmp_buff[36]=((envy[29] & 0x00c0) | ((envy[30] & 0xfc00) >> 10));
+							tmp_buff[37]=(((envy[30] & 0x03c0) >> 2 ) | ((envy[31] & 0xf000) >> 12));
+							tmp_buff[38]=(((envy[31] & 0x0fc0) >> 4 ) | ((envy[32] & 0xc000) >> 14));
+							tmp_buff[39]=((envy[32] & 0x3fc0) >> 6 );
+
+							tmp_buff[40]=((envy[33] & 0xff00) >> 8 );
+							tmp_buff[41]=((envy[33] & 0x00c0) | ((envy[34] & 0xfc00) >> 10));
+							tmp_buff[42]=(((envy[34] & 0x03c0) >> 2 ) | ((envy[35] & 0xf000) >> 12));
+							tmp_buff[43]=(((envy[35] & 0x0fc0) >> 4 ) | ((envy[36] & 0xc000) >> 14));
+							tmp_buff[44]=((envy[36] & 0x3fc0) >> 6 );
+
+							tmp_buff[45]=((envy[37] & 0xff00) >> 8 );
+							tmp_buff[46]=((envy[37] & 0x00c0) | ((envy[38] & 0xfc00) >> 10));
+							tmp_buff[47]=(((envy[38] & 0x03c0) >> 2 ) | ((envy[39] & 0xf000) >> 12));
+							tmp_buff[48]=(((envy[39] & 0x0fc0) >> 4 ) | ((envy[40] & 0xc000) >> 14));
+							tmp_buff[49]=((envy[40] & 0x3fc0) >> 6 );
+
+
+							if(data_length>=38)
+							{
+								data_length=38;
+							}
+
+							if(allignment==1) // left allignment
+							{
+								start=((data_size-4)*12);
+								start=384-start;
+								start=((start/8));
+								start=48-start;
+
+								for(i=0;i<start;i++)
+									tmp[i]=tmp_buff[i];
+								j=0;
+
+								for(i=start;i<48;i++)
+									tmp[i]=0;
+							}
+
+							else if(allignment==2) // right allignment
+							{
+								start=((data_size-4)*10);
+								start=384-start;
+								start=((start/8));
+
+								for(i=0;i<start;i++)
+									tmp[i]=0;
+								j=0;
+
+								for(i=start;i<48;i++)
+									tmp[i]=tmp_buff[j++];
+							}
+
+							else if(allignment==3) // center allignment
+							{
+								start=((data_size-4)*10);
+								start=384-start;
+								start=((start/2)+(start%2));
+								start=((start/8));
+								end=((data_size-4)*10);
+								end=((end/8)+(end%8));
+								end=(start+end);
+
+								for(i=0;i<start;i++)
+									tmp[i]=0;
+								j=0;
+
+								for(i=start;i<end;i++)
+									tmp[i]=tmp_buff[j++];
+
+								for(i=end;i<48;i++)
+									tmp[i]=0;
+							}
+
+							spi_write(printer_dev.spi_device, addr, 48);
+							rotate(2);
+
+							memset(envy,0,48);
+
+						}
+					}  // small font - ends
+
+					//********** Medium Font Printing **********
+					if(font_size == 2)
+					{
+						memset(envy,0,48);
+
+						for(height=0;height<12;height++)
+						{
+							for(width=1;width<=32 && width<(data_size-3);width++)
+							{
+
+								if(font_type == 1)
+									envy[width] = Medium_Regular[data[width]][height];
+								if(font_type == 2)
+									envy[width] = Medium_Bold[data[width]][height];
+							}
+
+							// Font width pixel count (12)
+							tmp_buff[0]=((envy[1] & 0xff00) >> 8 );
+							tmp_buff[1]=((envy[1] & 0x00f0) | ((envy[2] & 0xf000) >> 12));
+							tmp_buff[2]=((envy[2] & 0x0ff0) >> 4);
+
+							tmp_buff[3]=((envy[3] & 0xff00) >> 8 );
+							tmp_buff[4]=((envy[3] & 0x00f0) | ((envy[4] & 0xf000) >> 12));
+							tmp_buff[5]=((envy[4] & 0x0ff0) >> 4);
+
+							tmp_buff[6]=((envy[5] & 0xff00) >> 8 );
+							tmp_buff[7]=((envy[5] & 0x00f0) | ((envy[6] & 0xf000) >> 12));
+							tmp_buff[8]=((envy[6] & 0x0ff0) >> 4);
+
+							tmp_buff[9]=((envy[7] & 0xff00) >> 8 );
+							tmp_buff[10]=((envy[7] & 0x00f0) | ((envy[8] & 0xf000) >> 12));
+							tmp_buff[11]=((envy[8] & 0x0ff0) >> 4);
+
+							tmp_buff[12]=((envy[9] & 0xff00) >> 8 );
+							tmp_buff[13]=((envy[9] & 0x00f0) | ((envy[10] & 0xf000) >> 12));
+							tmp_buff[14]=((envy[10] & 0x0ff0) >> 4);
+
+							tmp_buff[15]=((envy[11] & 0xff00) >> 8 );
+							tmp_buff[16]=((envy[11] & 0x00f0) | ((envy[12] & 0xf000) >> 12));
+							tmp_buff[17]=((envy[12] & 0x0ff0) >> 4);
+
+							tmp_buff[18]=((envy[13] & 0xff00) >> 8 );
+							tmp_buff[19]=((envy[13] & 0x00f0) | ((envy[14] & 0xf000) >> 12));
+							tmp_buff[20]=((envy[14] & 0x0ff0) >> 4);
+
+							tmp_buff[21]=((envy[15] & 0xff00) >> 8 );
+							tmp_buff[22]=((envy[15] & 0x00f0) | ((envy[16] & 0xf000) >> 12));
+							tmp_buff[23]=((envy[16] & 0x0ff0) >> 4);
+
+							tmp_buff[24]=((envy[17] & 0xff00) >> 8 );
+							tmp_buff[25]=((envy[17] & 0x00f0) | ((envy[18] & 0xf000) >> 12));
+							tmp_buff[26]=((envy[18] & 0x0ff0) >> 4);
+
+							tmp_buff[27]=((envy[19] & 0xff00) >> 8 );
+							tmp_buff[28]=((envy[19] & 0x00f0) | ((envy[20] & 0xf000) >> 12));
+							tmp_buff[29]=((envy[20] & 0x0ff0) >> 4);
+
+							tmp_buff[30]=((envy[21] & 0xff00) >> 8 );
+							tmp_buff[31]=((envy[21] & 0x00f0) | ((envy[22] & 0xf000) >> 12));
+							tmp_buff[32]=((envy[22] & 0x0ff0) >> 4);
+
+							tmp_buff[33]=((envy[23] & 0xff00) >> 8 );
+							tmp_buff[34]=((envy[23] & 0x00f0) | ((envy[24] & 0xf000) >> 12));
+							tmp_buff[35]=((envy[24] & 0x0ff0) >> 4);
+
+							tmp_buff[36]=((envy[25] & 0xff00) >> 8 );
+							tmp_buff[37]=((envy[25] & 0x00f0) | ((envy[26] & 0xf000) >> 12));
+							tmp_buff[38]=((envy[26] & 0x0ff0) >> 4);
+
+							tmp_buff[39]=((envy[27] & 0xff00) >> 8 );
+							tmp_buff[40]=((envy[27] & 0x00f0) | ((envy[28] & 0xf000) >> 12));
+							tmp_buff[41]=((envy[28] & 0x0ff0) >> 4);
+
+							tmp_buff[42]=((envy[29] & 0xff00) >> 8 );
+							tmp_buff[43]=((envy[29] & 0x00f0) | ((envy[30] & 0xf000) >> 12));
+							tmp_buff[44]=((envy[30] & 0x0ff0) >> 4);
+
+							tmp_buff[45]=((envy[31] & 0xff00) >> 8 );
+							tmp_buff[46]=((envy[31] & 0x00f0) | ((envy[32] & 0xf000) >> 12));
+							tmp_buff[47]=((envy[32] & 0x0ff0) >> 4);
+
+							if(data_length>=32)
+								data_length=32;
+
+							if(allignment==1) // left allignment
+							{
+								start=((data_size-4)*12);
+								start=384-start;
+								start=((start/8));
+								start=48-start;
+
+								for(i=0;i<start;i++)
+									tmp[i]=tmp_buff[i];
+								j=0;
+
+								for(i=start;i<48;i++)
+									tmp[i]=0;
+							}
+
+							else if(allignment==2) // right allignment
+							{
+								start=((data_size-4)*12);
+								start=384-start;
+								start=((start/8));
+
+								for(i=0;i<start;i++)
+									tmp[i]=0;
+								j=0;
+
+								for(i=start;i<48;i++)
+									tmp[i]=tmp_buff[j++];
+							}
+
+							else if(allignment==3) // center allignment
+							{
+								start=((data_size-4)*12);
+								start=384-start;
+								start=((start/2)+(start%2));
+								start=((start/8));
+								end=((data_size-4)*12);
+								end=((end/8)+(end%8));
+								end=(start+end);
+
+								for(i=0;i<start;i++)
+									tmp[i]=0;
+								j=0;
+
+								for(i=start;i<end;i++)
+									tmp[i]=tmp_buff[j++];
+
+								for(i=end;i<48;i++)
+									tmp[i]=0;
+							}
+
+
+							spi_write(printer_dev.spi_device, addr, 48);
+							rotate(2);
+
+							memset(envy,0,48);
+						}
+					}	// Medium font - ends
+
+
+					memset(tmp,0,48);
+					memset(tmp_buff,0,48);
+				}
+
 				Temp=0;
 				break;
-
 				// --------------------- IMAGE PRINTING ----------------------------
 
 			case 41: // I - Image printing
@@ -711,6 +816,7 @@ printk("%c %c %c\n",g[0]+32, g[Temp-2]+32, g[Temp-1]+32);
 		printk("Printer_Log: Invalid Packet\n");
 		Temp = 0;
 	}
+
 	memset(addr,0,sizeof(addr));
 	memset(tmp,0,sizeof(tmp));
 
@@ -1219,3 +1325,5 @@ MODULE_AUTHOR("Clancor Team");
 MODULE_DESCRIPTION("printer module - SPI driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION("0.2");
+
+
