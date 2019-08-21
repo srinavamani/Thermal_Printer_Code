@@ -6,6 +6,49 @@
 //                                                                       //
 //***********************************************************************//
 
+
+/*
+
+Note:
+
+Font pixels detail:
+
+Width - 8 / 10 / 12 / 14 / 16
+Height - Any size
+
+If any new font generated it need to be append in sample_font_1.h
+Once the font confirmed, It will be added in final_font.h
+
+Right now Small & Medium font type alone implemented.
+Tiny & Large font type will be added asap.
+
+*/
+
+// Small font configuration
+#define Small_reg_width		10
+#define Small_reg_height	10
+#define Small_bold_width	10
+#define Small_bold_height	10
+
+// Medium font configuration
+#define Medium_reg_width	12
+#define Medium_reg_height	12
+#define Medium_bold_width	12
+#define Medium_bold_height	12
+/*
+// Large font configuration
+#define Large_reg_width		14
+#define Large_reg_height	14
+#define Large_bold_width	14
+#define Large_bold_height	14
+
+// Tiny font configuration
+#define Tiny_reg_width		8
+#define Tiny_reg_height		8
+#define Tiny_bold_width		8
+#define Tiny_bold_height	8
+*/
+
 //-------Kernel Header files included------
 
 #include<linux/module.h>
@@ -25,6 +68,7 @@
 
 #include "motor.h"
 #include "final_font.h"
+#include "sample_font_1.h"
 
 //----------- Tamil Fonts included -------
 
@@ -57,6 +101,7 @@ unsigned int parse_char(char c)
 
 //------function decleration--------------
 
+void pixel_loading(int);
 int Noofbytes(void);
 void rotate(int);
 int rotate_stat;
@@ -126,6 +171,10 @@ int no_of_lines=0,font_size,font_type;
 int width=0,height,line_wise=0;
 unsigned short int envy[50];
 char tmp_buff[48];
+int Small_font_width = 0;
+int Small_font_height = 0;
+int Medium_font_width = 0;
+int Medium_font_height = 0;
 
 //-----------------------paper sensing variable--------------------------
 
@@ -409,11 +458,35 @@ static void printer_prepare_spi_message(void)
 					{
 						case 51:
 							font_size=1;		// Small
+
+							if(font_type == 1)
+							{
+								Small_font_width = Small_reg_width;
+								Small_font_height = Small_reg_height;
+							}
+							else if(font_type == 2)
+							{
+								Small_font_width = Small_bold_width;
+								Small_font_height = Small_bold_height; 
+							}
+
 							if(data_size>42)
 								data_size=42;
 							break;
 						case 45:
 							font_size=2;		// Medium
+
+							if(font_type == 1)
+							{
+								Medium_font_width = Medium_reg_width;
+								Medium_font_height = Medium_reg_height;
+							}
+							else if(font_type == 2)
+							{
+								Medium_font_width = Medium_bold_width;
+								Medium_font_height = Medium_bold_height; 
+							}
+
 							if(data_size>36)
 								data_size=36;
 							break;
@@ -424,7 +497,7 @@ static void printer_prepare_spi_message(void)
 					{
 						memset(envy,0,48);
 
-						for(height=0;height<10;height++)
+						for(height=0;height<Small_font_height;height++)
 						{
 							for(width=1;width<=41 && width<(data_size-3);width++)
 							{
@@ -432,67 +505,7 @@ static void printer_prepare_spi_message(void)
 									envy[width]=Small_Regular[data[width]][height];
 							}
 
-							// Font width pixel count (10) 
-							tmp_buff[0]=((envy[1] & 0xff00) >> 8 );
-							tmp_buff[1]=((envy[1] & 0x00c0) | ((envy[2] & 0xfc00) >> 10));
-							tmp_buff[2]=(((envy[2] & 0x03c0) >> 2 ) | ((envy[3] & 0xf000) >> 12));
-							tmp_buff[3]=(((envy[3] & 0x0fc0) >> 4 ) | ((envy[4] & 0xc000) >> 14));
-							tmp_buff[4]=((envy[4] & 0x3fc0) >> 6 );
-
-							tmp_buff[5]=((envy[5] & 0xff00) >> 8 );
-							tmp_buff[6]=((envy[5] & 0x00c0) | ((envy[6] & 0xfc00) >> 10));
-							tmp_buff[7]=(((envy[6] & 0x03c0) >> 2 ) | ((envy[7] & 0xf000) >> 12));
-							tmp_buff[8]=(((envy[7] & 0x0fc0) >> 4 ) | ((envy[8] & 0xc000) >> 14));
-							tmp_buff[9]=((envy[8] & 0x3fc0) >> 6 );
-
-							tmp_buff[10]=((envy[9] & 0xff00) >> 8 );
-							tmp_buff[11]=((envy[9] & 0x00c0) | ((envy[10] & 0xfc00) >> 10));
-							tmp_buff[12]=(((envy[10] & 0x03c0) >> 2 ) | ((envy[11] & 0xf000) >> 12));
-							tmp_buff[13]=(((envy[11] & 0x0fc0) >> 4 ) | ((envy[12] & 0xc000) >> 14));
-							tmp_buff[14]=((envy[12] & 0x3fc0) >> 6 );
-
-							tmp_buff[15]=((envy[13] & 0xff00) >> 8 );
-							tmp_buff[16]=((envy[13] & 0x00c0) | ((envy[14] & 0xfc00) >> 10));
-							tmp_buff[17]=(((envy[14] & 0x03c0) >> 2 ) | ((envy[15] & 0xf000) >> 12));
-							tmp_buff[18]=(((envy[15] & 0x0fc0) >> 4 ) | ((envy[16] & 0xc000) >> 14));
-							tmp_buff[19]=((envy[16] & 0x3fc0) >> 6 );
-
-							tmp_buff[20]=((envy[17] & 0xff00) >> 8 );
-							tmp_buff[21]=((envy[17] & 0x00c0) | ((envy[18] & 0xfc00) >> 10));
-							tmp_buff[22]=(((envy[18] & 0x03c0) >> 2 ) | ((envy[19] & 0xf000) >> 12));
-							tmp_buff[23]=(((envy[19] & 0x0fc0) >> 4 ) | ((envy[20] & 0xc000) >> 14));
-							tmp_buff[24]=((envy[20] & 0x3fc0) >> 6 );
-
-							tmp_buff[25]=((envy[21] & 0xff00) >> 8 );
-							tmp_buff[26]=((envy[21] & 0x00c0) | ((envy[22] & 0xfc00) >> 10));
-							tmp_buff[27]=(((envy[22] & 0x03c0) >> 2 ) | ((envy[23] & 0xf000) >> 12));
-							tmp_buff[28]=(((envy[23] & 0x0fc0) >> 4 ) | ((envy[24] & 0xc000) >> 14));
-							tmp_buff[29]=((envy[24] & 0x3fc0) >> 6 );
-
-							tmp_buff[30]=((envy[25] & 0xff00) >> 8 );
-							tmp_buff[31]=((envy[25] & 0x00c0) | ((envy[26] & 0xfc00) >> 10));
-							tmp_buff[32]=(((envy[26] & 0x03c0) >> 2 ) | ((envy[27] & 0xf000) >> 12));
-							tmp_buff[33]=(((envy[27] & 0x0fc0) >> 4 ) | ((envy[28] & 0xc000) >> 14));
-							tmp_buff[34]=((envy[28] & 0x3fc0) >> 6 );
-
-							tmp_buff[35]=((envy[29] & 0xff00) >> 8 );
-							tmp_buff[36]=((envy[29] & 0x00c0) | ((envy[30] & 0xfc00) >> 10));
-							tmp_buff[37]=(((envy[30] & 0x03c0) >> 2 ) | ((envy[31] & 0xf000) >> 12));
-							tmp_buff[38]=(((envy[31] & 0x0fc0) >> 4 ) | ((envy[32] & 0xc000) >> 14));
-							tmp_buff[39]=((envy[32] & 0x3fc0) >> 6 );
-
-							tmp_buff[40]=((envy[33] & 0xff00) >> 8 );
-							tmp_buff[41]=((envy[33] & 0x00c0) | ((envy[34] & 0xfc00) >> 10));
-							tmp_buff[42]=(((envy[34] & 0x03c0) >> 2 ) | ((envy[35] & 0xf000) >> 12));
-							tmp_buff[43]=(((envy[35] & 0x0fc0) >> 4 ) | ((envy[36] & 0xc000) >> 14));
-							tmp_buff[44]=((envy[36] & 0x3fc0) >> 6 );
-
-							tmp_buff[45]=((envy[37] & 0xff00) >> 8 );
-							tmp_buff[46]=((envy[37] & 0x00c0) | ((envy[38] & 0xfc00) >> 10));
-							tmp_buff[47]=(((envy[38] & 0x03c0) >> 2 ) | ((envy[39] & 0xf000) >> 12));
-							tmp_buff[48]=(((envy[39] & 0x0fc0) >> 4 ) | ((envy[40] & 0xc000) >> 14));
-							tmp_buff[49]=((envy[40] & 0x3fc0) >> 6 );
-
+							pixel_loading(Small_font_width);
 
 							if(data_length>=38)
 							{
@@ -562,81 +575,18 @@ static void printer_prepare_spi_message(void)
 					{
 						memset(envy,0,48);
 
-						for(height=0;height<12;height++)
+						for(height=0;height<Medium_font_height;height++)
 						{
 							for(width=1;width<=32 && width<(data_size-3);width++)
 							{
 
 								if(font_type == 1)
-									envy[width] = Medium_Regular[data[width]][height];
+									envy[width] = Medium_Regular_1[data[width]][height];
 								if(font_type == 2)
 									envy[width] = Medium_Bold[data[width]][height];
 							}
 
-							// Font width pixel count (12)
-							tmp_buff[0]=((envy[1] & 0xff00) >> 8 );
-							tmp_buff[1]=((envy[1] & 0x00f0) | ((envy[2] & 0xf000) >> 12));
-							tmp_buff[2]=((envy[2] & 0x0ff0) >> 4);
-
-							tmp_buff[3]=((envy[3] & 0xff00) >> 8 );
-							tmp_buff[4]=((envy[3] & 0x00f0) | ((envy[4] & 0xf000) >> 12));
-							tmp_buff[5]=((envy[4] & 0x0ff0) >> 4);
-
-							tmp_buff[6]=((envy[5] & 0xff00) >> 8 );
-							tmp_buff[7]=((envy[5] & 0x00f0) | ((envy[6] & 0xf000) >> 12));
-							tmp_buff[8]=((envy[6] & 0x0ff0) >> 4);
-
-							tmp_buff[9]=((envy[7] & 0xff00) >> 8 );
-							tmp_buff[10]=((envy[7] & 0x00f0) | ((envy[8] & 0xf000) >> 12));
-							tmp_buff[11]=((envy[8] & 0x0ff0) >> 4);
-
-							tmp_buff[12]=((envy[9] & 0xff00) >> 8 );
-							tmp_buff[13]=((envy[9] & 0x00f0) | ((envy[10] & 0xf000) >> 12));
-							tmp_buff[14]=((envy[10] & 0x0ff0) >> 4);
-
-							tmp_buff[15]=((envy[11] & 0xff00) >> 8 );
-							tmp_buff[16]=((envy[11] & 0x00f0) | ((envy[12] & 0xf000) >> 12));
-							tmp_buff[17]=((envy[12] & 0x0ff0) >> 4);
-
-							tmp_buff[18]=((envy[13] & 0xff00) >> 8 );
-							tmp_buff[19]=((envy[13] & 0x00f0) | ((envy[14] & 0xf000) >> 12));
-							tmp_buff[20]=((envy[14] & 0x0ff0) >> 4);
-
-							tmp_buff[21]=((envy[15] & 0xff00) >> 8 );
-							tmp_buff[22]=((envy[15] & 0x00f0) | ((envy[16] & 0xf000) >> 12));
-							tmp_buff[23]=((envy[16] & 0x0ff0) >> 4);
-
-							tmp_buff[24]=((envy[17] & 0xff00) >> 8 );
-							tmp_buff[25]=((envy[17] & 0x00f0) | ((envy[18] & 0xf000) >> 12));
-							tmp_buff[26]=((envy[18] & 0x0ff0) >> 4);
-
-							tmp_buff[27]=((envy[19] & 0xff00) >> 8 );
-							tmp_buff[28]=((envy[19] & 0x00f0) | ((envy[20] & 0xf000) >> 12));
-							tmp_buff[29]=((envy[20] & 0x0ff0) >> 4);
-
-							tmp_buff[30]=((envy[21] & 0xff00) >> 8 );
-							tmp_buff[31]=((envy[21] & 0x00f0) | ((envy[22] & 0xf000) >> 12));
-							tmp_buff[32]=((envy[22] & 0x0ff0) >> 4);
-
-							tmp_buff[33]=((envy[23] & 0xff00) >> 8 );
-							tmp_buff[34]=((envy[23] & 0x00f0) | ((envy[24] & 0xf000) >> 12));
-							tmp_buff[35]=((envy[24] & 0x0ff0) >> 4);
-
-							tmp_buff[36]=((envy[25] & 0xff00) >> 8 );
-							tmp_buff[37]=((envy[25] & 0x00f0) | ((envy[26] & 0xf000) >> 12));
-							tmp_buff[38]=((envy[26] & 0x0ff0) >> 4);
-
-							tmp_buff[39]=((envy[27] & 0xff00) >> 8 );
-							tmp_buff[40]=((envy[27] & 0x00f0) | ((envy[28] & 0xf000) >> 12));
-							tmp_buff[41]=((envy[28] & 0x0ff0) >> 4);
-
-							tmp_buff[42]=((envy[29] & 0xff00) >> 8 );
-							tmp_buff[43]=((envy[29] & 0x00f0) | ((envy[30] & 0xf000) >> 12));
-							tmp_buff[44]=((envy[30] & 0x0ff0) >> 4);
-
-							tmp_buff[45]=((envy[31] & 0xff00) >> 8 );
-							tmp_buff[46]=((envy[31] & 0x00f0) | ((envy[32] & 0xf000) >> 12));
-							tmp_buff[47]=((envy[32] & 0x0ff0) >> 4);
+							pixel_loading(Medium_font_width);
 
 							if(data_length>=32)
 								data_length=32;
@@ -699,9 +649,10 @@ static void printer_prepare_spi_message(void)
 						}
 					}	// Medium font - ends
 
-
 					memset(tmp,0,48);
 					memset(tmp_buff,0,48);
+					spi_write(printer_dev.spi_device, addr, 48);
+					rotate(4);
 				}
 
 				Temp=0;
@@ -823,6 +774,326 @@ static void printer_prepare_spi_message(void)
 	memset(printer_ctl.tx_buff, 0, SPI_BUFF_SIZE);
 	spi_message_add_tail(&printer_ctl.transfer, &printer_ctl.msg);
 	gpio_direction_output(137,0);
+}
+
+void pixel_loading(int pixel)
+{
+
+	int load_count=0, load_sub_count=1;
+
+	if(pixel == 8)	// Font width pixel count (8)
+	{
+		tmp_buff[0] = ((envy[1] & 0xff00) >> 8 );
+		tmp_buff[1] = ((envy[2] & 0xff00) >> 8 );
+		tmp_buff[2] = ((envy[3] & 0xff00) >> 8 );
+		tmp_buff[3] = ((envy[4] & 0xff00) >> 8 );
+		tmp_buff[4] = ((envy[5] & 0xff00) >> 8 );
+		tmp_buff[5] = ((envy[6] & 0xff00) >> 8 );
+		tmp_buff[6] = ((envy[7] & 0xff00) >> 8 );
+		tmp_buff[7] = ((envy[8] & 0xff00) >> 8 );
+
+		tmp_buff[8] = ((envy[9] & 0xff00) >> 8 );
+		tmp_buff[9] = ((envy[10] & 0xff00) >> 8 );
+		tmp_buff[10] = ((envy[11] & 0xff00) >> 8 );
+		tmp_buff[11] = ((envy[12] & 0xff00) >> 8 );
+		tmp_buff[12] = ((envy[13] & 0xff00) >> 8 );
+		tmp_buff[13] = ((envy[14] & 0xff00) >> 8 );
+		tmp_buff[14] = ((envy[15] & 0xff00) >> 8 );
+		tmp_buff[15] = ((envy[16] & 0xff00) >> 8 );
+
+		tmp_buff[16] = ((envy[17] & 0xff00) >> 8 );
+		tmp_buff[17] = ((envy[18] & 0xff00) >> 8 );
+		tmp_buff[18] = ((envy[19] & 0xff00) >> 8 );
+		tmp_buff[19] = ((envy[20] & 0xff00) >> 8 );
+		tmp_buff[20] = ((envy[21] & 0xff00) >> 8 );
+		tmp_buff[21] = ((envy[22] & 0xff00) >> 8 );
+		tmp_buff[22] = ((envy[23] & 0xff00) >> 8 );
+		tmp_buff[23] = ((envy[24] & 0xff00) >> 8 );
+
+		tmp_buff[24] = ((envy[25] & 0xff00) >> 8 );
+		tmp_buff[25] = ((envy[26] & 0xff00) >> 8 );
+		tmp_buff[26] = ((envy[27] & 0xff00) >> 8 );
+		tmp_buff[27] = ((envy[28] & 0xff00) >> 8 );
+		tmp_buff[28] = ((envy[29] & 0xff00) >> 8 );
+		tmp_buff[29] = ((envy[30] & 0xff00) >> 8 );
+		tmp_buff[30] = ((envy[31] & 0xff00) >> 8 );
+		tmp_buff[31] = ((envy[32] & 0xff00) >> 8 );
+
+		tmp_buff[32] = ((envy[33] & 0xff00) >> 8 );
+		tmp_buff[33] = ((envy[34] & 0xff00) >> 8 );
+		tmp_buff[34] = ((envy[35] & 0xff00) >> 8 );
+		tmp_buff[35] = ((envy[36] & 0xff00) >> 8 );
+		tmp_buff[36] = ((envy[37] & 0xff00) >> 8 );
+		tmp_buff[37] = ((envy[38] & 0xff00) >> 8 );
+		tmp_buff[38] = ((envy[39] & 0xff00) >> 8 );
+		tmp_buff[39] = ((envy[40] & 0xff00) >> 8 );
+
+		tmp_buff[40] = ((envy[41] & 0xff00) >> 8 );
+		tmp_buff[41] = ((envy[42] & 0xff00) >> 8 );
+		tmp_buff[42] = ((envy[43] & 0xff00) >> 8 );
+		tmp_buff[43] = ((envy[44] & 0xff00) >> 8 );
+		tmp_buff[44] = ((envy[45] & 0xff00) >> 8 );
+		tmp_buff[45] = ((envy[46] & 0xff00) >> 8 );
+		tmp_buff[46] = ((envy[47] & 0xff00) >> 8 );
+		tmp_buff[47] = ((envy[48] & 0xff00) >> 8 );
+	}
+
+	else if(pixel == 10)	// Font width pixel count (10) 
+	{
+
+		// Font width pixel count (10) 
+		tmp_buff[0]=((envy[1] & 0xff00) >> 8 );
+		tmp_buff[1]=((envy[1] & 0x00c0) | ((envy[2] & 0xfc00) >> 10));
+		tmp_buff[2]=(((envy[2] & 0x03c0) >> 2 ) | ((envy[3] & 0xf000) >> 12));
+		tmp_buff[3]=(((envy[3] & 0x0fc0) >> 4 ) | ((envy[4] & 0xc000) >> 14));
+		tmp_buff[4]=((envy[4] & 0x3fc0) >> 6 );
+
+		tmp_buff[5]=((envy[5] & 0xff00) >> 8 );
+		tmp_buff[6]=((envy[5] & 0x00c0) | ((envy[6] & 0xfc00) >> 10));
+		tmp_buff[7]=(((envy[6] & 0x03c0) >> 2 ) | ((envy[7] & 0xf000) >> 12));
+		tmp_buff[8]=(((envy[7] & 0x0fc0) >> 4 ) | ((envy[8] & 0xc000) >> 14));
+		tmp_buff[9]=((envy[8] & 0x3fc0) >> 6 );
+
+		tmp_buff[10]=((envy[9] & 0xff00) >> 8 );
+		tmp_buff[11]=((envy[9] & 0x00c0) | ((envy[10] & 0xfc00) >> 10));
+		tmp_buff[12]=(((envy[10] & 0x03c0) >> 2 ) | ((envy[11] & 0xf000) >> 12));
+		tmp_buff[13]=(((envy[11] & 0x0fc0) >> 4 ) | ((envy[12] & 0xc000) >> 14));
+		tmp_buff[14]=((envy[12] & 0x3fc0) >> 6 );
+
+		tmp_buff[15]=((envy[13] & 0xff00) >> 8 );
+		tmp_buff[16]=((envy[13] & 0x00c0) | ((envy[14] & 0xfc00) >> 10));
+		tmp_buff[17]=(((envy[14] & 0x03c0) >> 2 ) | ((envy[15] & 0xf000) >> 12));
+		tmp_buff[18]=(((envy[15] & 0x0fc0) >> 4 ) | ((envy[16] & 0xc000) >> 14));
+		tmp_buff[19]=((envy[16] & 0x3fc0) >> 6 );
+
+		tmp_buff[20]=((envy[17] & 0xff00) >> 8 );
+		tmp_buff[21]=((envy[17] & 0x00c0) | ((envy[18] & 0xfc00) >> 10));
+		tmp_buff[22]=(((envy[18] & 0x03c0) >> 2 ) | ((envy[19] & 0xf000) >> 12));
+		tmp_buff[23]=(((envy[19] & 0x0fc0) >> 4 ) | ((envy[20] & 0xc000) >> 14));
+		tmp_buff[24]=((envy[20] & 0x3fc0) >> 6 );
+
+		tmp_buff[25]=((envy[21] & 0xff00) >> 8 );
+		tmp_buff[26]=((envy[21] & 0x00c0) | ((envy[22] & 0xfc00) >> 10));
+		tmp_buff[27]=(((envy[22] & 0x03c0) >> 2 ) | ((envy[23] & 0xf000) >> 12));
+		tmp_buff[28]=(((envy[23] & 0x0fc0) >> 4 ) | ((envy[24] & 0xc000) >> 14));
+		tmp_buff[29]=((envy[24] & 0x3fc0) >> 6 );
+
+		tmp_buff[30]=((envy[25] & 0xff00) >> 8 );
+		tmp_buff[31]=((envy[25] & 0x00c0) | ((envy[26] & 0xfc00) >> 10));
+		tmp_buff[32]=(((envy[26] & 0x03c0) >> 2 ) | ((envy[27] & 0xf000) >> 12));
+		tmp_buff[33]=(((envy[27] & 0x0fc0) >> 4 ) | ((envy[28] & 0xc000) >> 14));
+		tmp_buff[34]=((envy[28] & 0x3fc0) >> 6 );
+
+		tmp_buff[35]=((envy[29] & 0xff00) >> 8 );
+		tmp_buff[36]=((envy[29] & 0x00c0) | ((envy[30] & 0xfc00) >> 10));
+		tmp_buff[37]=(((envy[30] & 0x03c0) >> 2 ) | ((envy[31] & 0xf000) >> 12));
+		tmp_buff[38]=(((envy[31] & 0x0fc0) >> 4 ) | ((envy[32] & 0xc000) >> 14));
+		tmp_buff[39]=((envy[32] & 0x3fc0) >> 6 );
+
+		tmp_buff[40]=((envy[33] & 0xff00) >> 8 );
+		tmp_buff[41]=((envy[33] & 0x00c0) | ((envy[34] & 0xfc00) >> 10));
+		tmp_buff[42]=(((envy[34] & 0x03c0) >> 2 ) | ((envy[35] & 0xf000) >> 12));
+		tmp_buff[43]=(((envy[35] & 0x0fc0) >> 4 ) | ((envy[36] & 0xc000) >> 14));
+		tmp_buff[44]=((envy[36] & 0x3fc0) >> 6 );
+
+		tmp_buff[45]=((envy[37] & 0xff00) >> 8 );
+		tmp_buff[46]=((envy[37] & 0x00c0) | ((envy[38] & 0xfc00) >> 10));
+		tmp_buff[47]=(((envy[38] & 0x03c0) >> 2 ) | ((envy[39] & 0xf000) >> 12));
+		tmp_buff[48]=(((envy[39] & 0x0fc0) >> 4 ) | ((envy[40] & 0xc000) >> 14));
+		tmp_buff[49]=((envy[40] & 0x3fc0) >> 6 );
+
+	}
+	else if(pixel == 12)	// Font width pixel count (12)
+	{
+
+		// Font width pixel count (12)
+		tmp_buff[0]=((envy[1] & 0xff00) >> 8 );
+		tmp_buff[1]=((envy[1] & 0x00f0) | ((envy[2] & 0xf000) >> 12));
+		tmp_buff[2]=((envy[2] & 0x0ff0) >> 4);
+
+		tmp_buff[3]=((envy[3] & 0xff00) >> 8 );
+		tmp_buff[4]=((envy[3] & 0x00f0) | ((envy[4] & 0xf000) >> 12));
+		tmp_buff[5]=((envy[4] & 0x0ff0) >> 4);
+
+		tmp_buff[6]=((envy[5] & 0xff00) >> 8 );
+		tmp_buff[7]=((envy[5] & 0x00f0) | ((envy[6] & 0xf000) >> 12));
+		tmp_buff[8]=((envy[6] & 0x0ff0) >> 4);
+
+		tmp_buff[9]=((envy[7] & 0xff00) >> 8 );
+		tmp_buff[10]=((envy[7] & 0x00f0) | ((envy[8] & 0xf000) >> 12));
+		tmp_buff[11]=((envy[8] & 0x0ff0) >> 4);
+
+		tmp_buff[12]=((envy[9] & 0xff00) >> 8 );
+		tmp_buff[13]=((envy[9] & 0x00f0) | ((envy[10] & 0xf000) >> 12));
+		tmp_buff[14]=((envy[10] & 0x0ff0) >> 4);
+
+		tmp_buff[15]=((envy[11] & 0xff00) >> 8 );
+		tmp_buff[16]=((envy[11] & 0x00f0) | ((envy[12] & 0xf000) >> 12));
+		tmp_buff[17]=((envy[12] & 0x0ff0) >> 4);
+
+		tmp_buff[18]=((envy[13] & 0xff00) >> 8 );
+		tmp_buff[19]=((envy[13] & 0x00f0) | ((envy[14] & 0xf000) >> 12));
+		tmp_buff[20]=((envy[14] & 0x0ff0) >> 4);
+
+		tmp_buff[21]=((envy[15] & 0xff00) >> 8 );
+		tmp_buff[22]=((envy[15] & 0x00f0) | ((envy[16] & 0xf000) >> 12));
+		tmp_buff[23]=((envy[16] & 0x0ff0) >> 4);
+
+		tmp_buff[24]=((envy[17] & 0xff00) >> 8 );
+		tmp_buff[25]=((envy[17] & 0x00f0) | ((envy[18] & 0xf000) >> 12));
+		tmp_buff[26]=((envy[18] & 0x0ff0) >> 4);
+
+		tmp_buff[27]=((envy[19] & 0xff00) >> 8 );
+		tmp_buff[28]=((envy[19] & 0x00f0) | ((envy[20] & 0xf000) >> 12));
+		tmp_buff[29]=((envy[20] & 0x0ff0) >> 4);
+
+		tmp_buff[30]=((envy[21] & 0xff00) >> 8 );
+		tmp_buff[31]=((envy[21] & 0x00f0) | ((envy[22] & 0xf000) >> 12));
+		tmp_buff[32]=((envy[22] & 0x0ff0) >> 4);
+
+		tmp_buff[33]=((envy[23] & 0xff00) >> 8 );
+		tmp_buff[34]=((envy[23] & 0x00f0) | ((envy[24] & 0xf000) >> 12));
+		tmp_buff[35]=((envy[24] & 0x0ff0) >> 4);
+
+		tmp_buff[36]=((envy[25] & 0xff00) >> 8 );
+		tmp_buff[37]=((envy[25] & 0x00f0) | ((envy[26] & 0xf000) >> 12));
+		tmp_buff[38]=((envy[26] & 0x0ff0) >> 4);
+
+		tmp_buff[39]=((envy[27] & 0xff00) >> 8 );
+		tmp_buff[40]=((envy[27] & 0x00f0) | ((envy[28] & 0xf000) >> 12));
+		tmp_buff[41]=((envy[28] & 0x0ff0) >> 4);
+
+		tmp_buff[42]=((envy[29] & 0xff00) >> 8 );
+		tmp_buff[43]=((envy[29] & 0x00f0) | ((envy[30] & 0xf000) >> 12));
+		tmp_buff[44]=((envy[30] & 0x0ff0) >> 4);
+
+		tmp_buff[45]=((envy[31] & 0xff00) >> 8 );
+		tmp_buff[46]=((envy[31] & 0x00f0) | ((envy[32] & 0xf000) >> 12));
+		tmp_buff[47]=((envy[32] & 0x0ff0) >> 4);
+	}
+
+	else if(pixel == 14)	// Font width pixel count (14)
+	{
+		tmp_buff[0]=((envy[0] & 0xff00) >> 8 );
+		tmp_buff[1]=((envy[0] & 0x00fc) | ((envy[1] & 0xc000) >> 14));
+		tmp_buff[2]=((envy[1] & 0x3fc0) >> 6 );
+		tmp_buff[3]=((envy[1] & 0x003c) >> 2 | ((envy[2] & 0xf000) >> 12));
+		tmp_buff[4]=((envy[2] & 0x0ff0) >> 4 );
+		tmp_buff[5]=((envy[2] & 0x000c) | ((envy[3] & 0xfc00) >> 10));
+		tmp_buff[6]=((envy[3] & 0x03fc) >> 2);
+		tmp_buff[7]=((envy[3] & 0x0003) | ((envy[4] & 0xfc00) >> 10));
+		tmp_buff[8]=((envy[4] & 0x03fc) >> 2); 
+
+		tmp_buff[9]=((envy[0] & 0xff00) >> 8 );
+		tmp_buff[10]=((envy[0] & 0x00fc) | ((envy[1] & 0xc000) >> 14));
+		tmp_buff[11]=((envy[1] & 0x3fc0) >> 6 );
+		tmp_buff[12]=((envy[1] & 0x003c) >> 2 | ((envy[2] & 0xf000) >> 12));
+		tmp_buff[13]=((envy[2] & 0x0ff0) >> 4 );
+		tmp_buff[14]=((envy[2] & 0x000c) | ((envy[3] & 0xfc00) >> 10));
+		tmp_buff[15]=((envy[3] & 0x03fc) >> 2);
+		tmp_buff[16]=((envy[3] & 0x0003) | ((envy[4] & 0xfc00) >> 10));
+		tmp_buff[17]=((envy[4] & 0x03fc) >> 2); 
+
+		tmp_buff[18]=((envy[0] & 0xff00) >> 8 );
+		tmp_buff[19]=((envy[0] & 0x00fc) | ((envy[1] & 0xc000) >> 14));
+		tmp_buff[20]=((envy[1] & 0x3fc0) >> 6 );
+		tmp_buff[21]=((envy[1] & 0x003c) >> 2 | ((envy[2] & 0xf000) >> 12));
+		tmp_buff[22]=((envy[2] & 0x0ff0) >> 4 );
+		tmp_buff[23]=((envy[2] & 0x000c) | ((envy[3] & 0xfc00) >> 10));
+		tmp_buff[24]=((envy[3] & 0x03fc) >> 2);
+		tmp_buff[25]=((envy[3] & 0x0003) | ((envy[4] & 0xfc00) >> 10));
+		tmp_buff[26]=((envy[4] & 0x03fc) >> 2); 
+
+		tmp_buff[27]=((envy[0] & 0xff00) >> 8 );
+		tmp_buff[28]=((envy[0] & 0x00fc) | ((envy[1] & 0xc000) >> 14));
+		tmp_buff[29]=((envy[1] & 0x3fc0) >> 6 );
+		tmp_buff[30]=((envy[1] & 0x003c) >> 2 | ((envy[2] & 0xf000) >> 12));
+		tmp_buff[31]=((envy[2] & 0x0ff0) >> 4 );
+		tmp_buff[32]=((envy[2] & 0x000c) | ((envy[3] & 0xfc00) >> 10));
+		tmp_buff[33]=((envy[3] & 0x03fc) >> 2);
+		tmp_buff[34]=((envy[3] & 0x0003) | ((envy[4] & 0xfc00) >> 10));
+		tmp_buff[35]=((envy[4] & 0x03fc) >> 2); 
+
+		tmp_buff[36]=((envy[0] & 0xff00) >> 8 );
+		tmp_buff[37]=((envy[0] & 0x00fc) | ((envy[1] & 0xc000) >> 14));
+		tmp_buff[38]=((envy[1] & 0x3fc0) >> 6 );
+		tmp_buff[39]=((envy[1] & 0x003c) >> 2 | ((envy[2] & 0xf000) >> 12));
+		tmp_buff[40]=((envy[2] & 0x0ff0) >> 4 );
+		tmp_buff[41]=((envy[2] & 0x000c) | ((envy[3] & 0xfc00) >> 10));
+		tmp_buff[42]=((envy[3] & 0x03fc) >> 2);
+		tmp_buff[43]=((envy[3] & 0x0003) | ((envy[4] & 0xfc00) >> 10));
+		tmp_buff[44]=((envy[4] & 0x03fc) >> 2); 
+
+		tmp_buff[45]=((envy[0] & 0xff00) >> 8 );
+		tmp_buff[46]=((envy[0] & 0x00fc) | ((envy[1] & 0xc000) >> 14));
+		tmp_buff[47]=((envy[1] & 0x3fc0) >> 6 );
+		tmp_buff[48]=((envy[1] & 0x003c) >> 2 | ((envy[2] & 0xf000) >> 12));
+		tmp_buff[49]=((envy[2] & 0x0ff0) >> 4 );
+		tmp_buff[50]=((envy[2] & 0x000c) | ((envy[3] & 0xfc00) >> 10));
+		tmp_buff[51]=((envy[3] & 0x03fc) >> 2);
+		tmp_buff[52]=((envy[3] & 0x0003) | ((envy[4] & 0xfc00) >> 10));
+		tmp_buff[53]=((envy[4] & 0x03fc) >> 2); 
+	}
+
+	else if(pixel == 16)	// Font width pixel count (16)
+	{
+
+		tmp_buff[0] = ((envy[1] & 0xff00) >> 8 );
+		tmp_buff[1] = ((envy[1] & 0x00ff) >> 8 );
+		tmp_buff[2] = ((envy[2] & 0xff00) >> 8 );
+		tmp_buff[3] = ((envy[2] & 0x00ff) >> 8 );
+		tmp_buff[4] = ((envy[3] & 0xff00) >> 8 );
+		tmp_buff[5] = ((envy[3] & 0x00ff) >> 8 );
+		tmp_buff[6] = ((envy[4] & 0xff00) >> 8 );
+		tmp_buff[7] = ((envy[4] & 0x00ff) >> 8 );
+
+		tmp_buff[8] = ((envy[5] & 0xff00) >> 8 );
+		tmp_buff[9] = ((envy[5] & 0x00ff) >> 8 );
+		tmp_buff[10] = ((envy[6] & 0xff00) >> 8 );
+		tmp_buff[11] = ((envy[6] & 0x00ff) >> 8 );
+		tmp_buff[12] = ((envy[7] & 0xff00) >> 8 );
+		tmp_buff[13] = ((envy[7] & 0x00ff) >> 8 );
+		tmp_buff[14] = ((envy[8] & 0xff00) >> 8 );
+		tmp_buff[15] = ((envy[8] & 0x00ff) >> 8 );
+
+		tmp_buff[16] = ((envy[9] & 0xff00) >> 8 );
+		tmp_buff[17] = ((envy[9] & 0x00ff) >> 8 );
+		tmp_buff[18] = ((envy[10] & 0xff00) >> 8 );
+		tmp_buff[19] = ((envy[10] & 0x00ff) >> 8 );
+		tmp_buff[20] = ((envy[11] & 0xff00) >> 8 );
+		tmp_buff[21] = ((envy[11] & 0x00ff) >> 8 );
+		tmp_buff[22] = ((envy[12] & 0xff00) >> 8 );
+		tmp_buff[23] = ((envy[12] & 0x00ff) >> 8 );
+
+		tmp_buff[24] = ((envy[13] & 0xff00) >> 8 );
+		tmp_buff[25] = ((envy[13] & 0x00ff) >> 8 );
+		tmp_buff[26] = ((envy[14] & 0xff00) >> 8 );
+		tmp_buff[27] = ((envy[14] & 0x00ff) >> 8 );
+		tmp_buff[28] = ((envy[15] & 0xff00) >> 8 );
+		tmp_buff[29] = ((envy[15] & 0x00ff) >> 8 );
+		tmp_buff[30] = ((envy[16] & 0xff00) >> 8 );
+		tmp_buff[31] = ((envy[16] & 0x00ff) >> 8 );
+
+		tmp_buff[32] = ((envy[17] & 0xff00) >> 8 );
+		tmp_buff[33] = ((envy[17] & 0x00ff) >> 8 );
+		tmp_buff[34] = ((envy[18] & 0xff00) >> 8 );
+		tmp_buff[35] = ((envy[18] & 0x00ff) >> 8 );
+		tmp_buff[36] = ((envy[19] & 0xff00) >> 8 );
+		tmp_buff[37] = ((envy[19] & 0x00ff) >> 8 );
+		tmp_buff[38] = ((envy[20] & 0xff00) >> 8 );
+		tmp_buff[39] = ((envy[20] & 0x00ff) >> 8 );
+
+		tmp_buff[40] = ((envy[21] & 0xff00) >> 8 );
+		tmp_buff[41] = ((envy[21] & 0x00ff) >> 8 );
+		tmp_buff[42] = ((envy[22] & 0xff00) >> 8 );
+		tmp_buff[43] = ((envy[22] & 0x00ff) >> 8 );
+		tmp_buff[44] = ((envy[23] & 0xff00) >> 8 );
+		tmp_buff[45] = ((envy[23] & 0x00ff) >> 8 );
+		tmp_buff[46] = ((envy[24] & 0xff00) >> 8 );
+		tmp_buff[47] = ((envy[24] & 0x00ff) >> 8 );
+
+	}
+
 }
 
 //---------------------------------------SPI system calls------------------------------------------//
