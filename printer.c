@@ -19,9 +19,6 @@ Height - Any size
 If any new font generated it need to be append in sample_font_1.h
 Once the font confirmed, It will be added in final_font.h
 
-Right now Small & Medium font type alone implemented.
-Tiny & Large font type will be added asap.
-
 */
 
 // Small font configuration
@@ -35,7 +32,7 @@ Tiny & Large font type will be added asap.
 #define Medium_reg_height	12
 #define Medium_bold_width	12
 #define Medium_bold_height	12
-/*
+
 // Large font configuration
 #define Large_reg_width		14
 #define Large_reg_height	14
@@ -47,7 +44,7 @@ Tiny & Large font type will be added asap.
 #define Tiny_reg_height		8
 #define Tiny_bold_width		8
 #define Tiny_bold_height	8
-*/
+
 
 //-------Kernel Header files included------
 
@@ -171,10 +168,14 @@ int no_of_lines=0,font_size,font_type;
 int width=0,height,line_wise=0;
 unsigned short int envy[50];
 char tmp_buff[48];
+int Tiny_font_width = 0;
+int Tiny_font_height = 0;
 int Small_font_width = 0;
 int Small_font_height = 0;
 int Medium_font_width = 0;
 int Medium_font_height = 0;
+int Large_font_width = 0;
+int Large_font_height = 0;
 
 //-----------------------paper sensing variable--------------------------
 
@@ -456,8 +457,26 @@ static void printer_prepare_spi_message(void)
 
 					switch(data[data_size-2])
 					{
+						case 52:
+							font_size=1;		// Tiny
+
+							if(font_type == 1)
+							{
+								Tiny_font_width = Tiny_reg_width;
+								Tiny_font_height = Tiny_reg_height;
+							}
+							else if(font_type == 2)
+							{
+								Tiny_font_width = Tiny_bold_width;
+								Tiny_font_height = Tiny_bold_height; 
+							}
+
+							if(data_size>52)
+								data_size=52;
+							break;
+
 						case 51:
-							font_size=1;		// Small
+							font_size=2;		// Small
 
 							if(font_type == 1)
 							{
@@ -473,8 +492,9 @@ static void printer_prepare_spi_message(void)
 							if(data_size>42)
 								data_size=42;
 							break;
+
 						case 45:
-							font_size=2;		// Medium
+							font_size=3;		// Medium
 
 							if(font_type == 1)
 							{
@@ -490,7 +510,105 @@ static void printer_prepare_spi_message(void)
 							if(data_size>36)
 								data_size=36;
 							break;
+
+						case 44:
+							font_size=4;		// Large
+
+							if(font_type == 1)
+							{
+								Large_font_width = Large_reg_width;
+								Large_font_height = Large_reg_height;
+							}
+							else if(font_type == 2)
+							{
+								Large_font_width = Large_bold_width;
+								Large_font_height = Large_bold_height; 
+							}
+
+							if(data_size>32)
+								data_size=32;
+							break;
 					}
+
+					//********** Tiny Font Printing **********
+					if(font_size == 1)
+					{
+						memset(envy,0,48);
+
+						for(height=0;height<Tiny_font_height;height++)
+						{
+							for(width=1;width<=51 && width<(data_size-3);width++)
+							{
+// Once font generated for tiny you can remove the comments and change the array name.
+//								if(font_type == 1)
+//									envy[width]=Tiny_Regular[data[width]][height];
+//								if(font_type == 2)
+//									envy[width]=Tiny_Regular[data[width]][height];
+							}
+
+							pixel_loading(Tiny_font_width);
+
+							if(data_length>=48)
+							{
+								data_length=48;
+							}
+
+							if(allignment==1) // left allignment
+							{
+								start=((data_size-4)*12);
+								start=384-start;
+								start=((start/8));
+								start=48-start;
+
+								for(i=0;i<start;i++)
+									tmp[i]=tmp_buff[i];
+								j=0;
+
+								for(i=start;i<48;i++)
+									tmp[i]=0;
+							}
+
+							else if(allignment==2) // right allignment
+							{
+								start=((data_size-4)*10);
+								start=384-start;
+								start=((start/8));
+
+								for(i=0;i<start;i++)
+									tmp[i]=0;
+								j=0;
+
+								for(i=start;i<48;i++)
+									tmp[i]=tmp_buff[j++];
+							}
+
+							else if(allignment==3) // center allignment
+							{
+								start=((data_size-4)*10);
+								start=384-start;
+								start=((start/2)+(start%2));
+								start=((start/8));
+								end=((data_size-4)*10);
+								end=((end/8)+(end%8));
+								end=(start+end);
+
+								for(i=0;i<start;i++)
+									tmp[i]=0;
+								j=0;
+
+								for(i=start;i<end;i++)
+									tmp[i]=tmp_buff[j++];
+
+								for(i=end;i<48;i++)
+									tmp[i]=0;
+							}
+
+							spi_write(printer_dev.spi_device, addr, 48);
+							rotate(2);
+
+							memset(envy,0,48);
+						}
+					}  // tiny font - ends
 
 					//********** Small Font Printing **********
 					if(font_size == 1)
@@ -648,6 +766,85 @@ static void printer_prepare_spi_message(void)
 							memset(envy,0,48);
 						}
 					}	// Medium font - ends
+
+					//********** Large Font Printing **********
+					if(font_size == 4)
+					{
+						memset(envy,0,48);
+
+						for(height=0;height<Large_font_height;height++)
+						{
+							for(width=1;width<=28 && width<(data_size-3);width++)
+							{
+// Once font generated for tiny you can remove the comments and change the array name.
+//								if(font_type == 1)
+//									envy[width] = Large_Regular_1[data[width]][height];
+//								if(font_type == 2)
+//									envy[width] = Large_Bold[data[width]][height];
+							}
+
+							pixel_loading(Medium_font_width);
+
+							if(data_length>=28)
+								data_length=28;
+
+							if(allignment==1) // left allignment
+							{
+								start=((data_size-4)*12);
+								start=384-start;
+								start=((start/8));
+								start=48-start;
+
+								for(i=0;i<start;i++)
+									tmp[i]=tmp_buff[i];
+								j=0;
+
+								for(i=start;i<48;i++)
+									tmp[i]=0;
+							}
+
+							else if(allignment==2) // right allignment
+							{
+								start=((data_size-4)*12);
+								start=384-start;
+								start=((start/8));
+
+								for(i=0;i<start;i++)
+									tmp[i]=0;
+								j=0;
+
+								for(i=start;i<48;i++)
+									tmp[i]=tmp_buff[j++];
+							}
+
+							else if(allignment==3) // center allignment
+							{
+								start=((data_size-4)*12);
+								start=384-start;
+								start=((start/2)+(start%2));
+								start=((start/8));
+								end=((data_size-4)*12);
+								end=((end/8)+(end%8));
+								end=(start+end);
+
+								for(i=0;i<start;i++)
+									tmp[i]=0;
+								j=0;
+
+								for(i=start;i<end;i++)
+									tmp[i]=tmp_buff[j++];
+
+								for(i=end;i<48;i++)
+									tmp[i]=0;
+							}
+
+
+							spi_write(printer_dev.spi_device, addr, 48);
+							rotate(2);
+
+							memset(envy,0,48);
+						}
+					}	// Large font - ends
 
 					memset(tmp,0,48);
 					memset(tmp_buff,0,48);
